@@ -96,7 +96,17 @@
         // Substitua pela sua URL e Key reais se necessário
         const supabaseUrl = 'https://zgeyjrmnkisomdlugupm.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZXlqcm1ua2lzb21kbHVndXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzMDU5MjEsImV4cCI6MjA4NDg4MTkyMX0.UK5O__2vwehjEQYGaPW3E2rPZZkiTFtXoWNJVKnmoLQ';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        let supabase = null;
+        try {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } else {
+                console.warn("Supabase não carregou. Verifique sua conexão.");
+            }
+        } catch (e) {
+            console.error("Erro ao inicializar Supabase:", e);
+        }
 
         // --- TOAST CONTEXT ---
         const ToastContext = createContext();
@@ -547,8 +557,9 @@
             // --- LÓGICA DO ADMIN ---
             // Carregar dados reais se houver Supabase
             useEffect(() => {
+                fetchData(); // Carrega defaults mesmo sem supabase
+
                 if (supabase) {
-                    fetchData();
                     setupRealtime();
                     
                     // Listener de Autenticação
@@ -611,8 +622,28 @@
                     { id: 10, name: 'Combo Artesanal' },
                     { id: 11, name: 'Fritas' }
                 ];
-                setCategories(defaultCats);
-                setActiveCategory(defaultCats[0].id);
+                
+                // Tenta buscar categorias do banco se disponível
+                if (supabase) {
+                    try {
+                        const { data: cats, error } = await supabase.from('categories').select('*').order('display_order');
+                        if (!error && cats && cats.length > 0) {
+                            setCategories(cats);
+                            setActiveCategory(cats[0].id);
+                        } else {
+                            setCategories(defaultCats);
+                            setActiveCategory(defaultCats[0].id);
+                        }
+                    } catch (e) {
+                        setCategories(defaultCats);
+                        setActiveCategory(defaultCats[0].id);
+                    }
+                } else {
+                    setCategories(defaultCats);
+                    setActiveCategory(defaultCats[0].id);
+                    setLoading(false);
+                    return;
+                }
 
                 // 2. Produtos
                 try {
