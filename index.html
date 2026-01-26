@@ -577,7 +577,10 @@
                 const productsChannel = supabase.channel('public:products')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
                         if (payload.eventType === 'INSERT') {
-                            setProducts(prev => [...prev, payload.new]);
+                            setProducts(prev => {
+                                if (prev.find(p => p.id === payload.new.id)) return prev;
+                                return [...prev, payload.new];
+                            });
                         } else if (payload.eventType === 'UPDATE') {
                             setProducts(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
                         } else if (payload.eventType === 'DELETE') {
@@ -599,22 +602,32 @@
             const fetchData = async () => {
                 setLoading(true);
                 
-                // 1. Categorias (Forçando a ordem fixa solicitada)
-                const defaultCats = [
-                    { id: 1, name: 'BURGERS' },
-                    { id: 2, name: 'HAMBURGUERES' },
-                    { id: 3, name: 'CHICKEN' },
-                    { id: 4, name: 'PORÇÕES' },
-                    { id: 5, name: 'CACHORRO QUENTE' },
-                    { id: 6, name: 'PASTEIS' },
-                    { id: 7, name: 'SOBREMESAS' },
-                    { id: 8, name: 'BEBIDAS' },
-                    { id: 9, name: 'Adicionais' },
-                    { id: 10, name: 'Combo Artesanal' },
-                    { id: 11, name: 'Fritas' }
-                ];
-                setCategories(defaultCats);
-                setActiveCategory(defaultCats[0].id);
+                // 1. Categorias (Prioriza o banco de dados para sincronia com Admin)
+                try {
+                    const { data: cats, error } = await supabase.from('categories').select('*').order('display_order');
+                    if (!error && cats && cats.length > 0) {
+                        setCategories(cats);
+                        setActiveCategory(cats[0].id);
+                    } else {
+                        throw new Error("Usando fallback");
+                    }
+                } catch (e) {
+                    const defaultCats = [
+                        { id: 1, name: 'BURGERS' },
+                        { id: 2, name: 'HAMBURGUERES' },
+                        { id: 3, name: 'CHICKEN' },
+                        { id: 4, name: 'PORÇÕES' },
+                        { id: 5, name: 'CACHORRO QUENTE' },
+                        { id: 6, name: 'PASTEIS' },
+                        { id: 7, name: 'SOBREMESAS' },
+                        { id: 8, name: 'BEBIDAS' },
+                        { id: 9, name: 'Adicionais' },
+                        { id: 10, name: 'Combo Artesanal' },
+                        { id: 11, name: 'Fritas' }
+                    ];
+                    setCategories(defaultCats);
+                    setActiveCategory(defaultCats[0].id);
+                }
 
                 // 2. Produtos
                 try {
