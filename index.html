@@ -96,17 +96,7 @@
         // Substitua pela sua URL e Key reais se necessário
         const supabaseUrl = 'https://zgeyjrmnkisomdlugupm.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZXlqcm1ua2lzb21kbHVndXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzMDU5MjEsImV4cCI6MjA4NDg4MTkyMX0.UK5O__2vwehjEQYGaPW3E2rPZZkiTFtXoWNJVKnmoLQ';
-        
-        let supabase = null;
-        try {
-            if (window.supabase) {
-                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-            } else {
-                console.error("Supabase não carregou. Verifique sua conexão ou bloqueadores de anúncio.");
-            }
-        } catch (err) {
-            console.error("Erro ao inicializar Supabase:", err);
-        }
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
 
         // --- TOAST CONTEXT ---
         const ToastContext = createContext();
@@ -158,7 +148,7 @@
 
         // --- COMPONENTES DE UI ---
         const NewsletterBanner = ({ onClose, onRegister }) => (
-            <div className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-[90] bg-[#B11226] p-6 rounded-xl shadow-2xl border border-red-800 animate-fade-in">
+            <div className="fixed bottom-4 right-4 z-[90] max-w-sm w-full bg-[#B11226] p-6 rounded-xl shadow-2xl border border-red-800 animate-fade-in mx-4 md:mx-0">
                 <button onClick={onClose} className="absolute top-2 right-2 text-white/60 hover:text-white text-xl">&times;</button>
                 <h3 className="font-display text-lg font-bold uppercase text-white mb-2">Ganhe Benefícios!</h3>
                 <p className="text-white/90 text-xs mb-4">Crie sua conta e faça parte do nosso Grupo de Fidelidade! Ganhe benefícios exclusivos em cada pedido.</p>
@@ -536,8 +526,9 @@
 
             // --- LÓGICA DA NEWSLETTER ---
             useEffect(() => {
-                // Mostra apenas se usuário não está logado
-                if (!user) {
+                const newsletterShown = localStorage.getItem('newsletter_exibida');
+                // Mostra apenas se não foi exibida e usuário não está logado
+                if (!newsletterShown && !user) {
                     const timer = setTimeout(() => setShowNewsletter(true), 3000); // Delay de 3s
                     return () => clearTimeout(timer);
                 }
@@ -545,6 +536,7 @@
 
             const handleCloseNewsletter = () => {
                 setShowNewsletter(false);
+                localStorage.setItem('newsletter_exibida', 'true');
             };
 
             const handleRegisterNewsletter = () => {
@@ -555,9 +547,8 @@
             // --- LÓGICA DO ADMIN ---
             // Carregar dados reais se houver Supabase
             useEffect(() => {
-                fetchData(); // Chama fetchData independente do supabase existir (para carregar fallbacks se necessário)
-
                 if (supabase) {
+                    fetchData();
                     setupRealtime();
                     
                     // Listener de Autenticação
@@ -570,11 +561,7 @@
                                 .eq('id', session.user.id)
                                 .single();
                             
-                            // Garante que o objeto user tenha um nome válido para evitar erros de renderização
-                            const userData = { ...session.user, ...profile };
-                            if (!userData.name) userData.name = session.user.user_metadata?.name || '';
-                            
-                            setUser(userData);
+                            setUser({ ...session.user, ...profile });
                         } else {
                             setUser(null);
                         }
@@ -588,10 +575,7 @@
                 const productsChannel = supabase.channel('public:products')
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, (payload) => {
                         if (payload.eventType === 'INSERT') {
-                            setProducts(prev => {
-                                if (prev.find(p => p.id === payload.new.id)) return prev;
-                                return [...prev, payload.new];
-                            });
+                            setProducts(prev => [...prev, payload.new]);
                         } else if (payload.eventType === 'UPDATE') {
                             setProducts(prev => prev.map(p => p.id === payload.new.id ? payload.new : p));
                         } else if (payload.eventType === 'DELETE') {
@@ -613,44 +597,31 @@
             const fetchData = async () => {
                 setLoading(true);
                 
-                // 1. Categorias (Prioriza o banco de dados para sincronia com Admin)
-                try {
-                    if (!supabase) throw new Error("Supabase offline");
-                    const { data: cats, error } = await supabase.from('categories').select('*').order('display_order');
-                    if (!error && cats && cats.length > 0) {
-                        setCategories(cats);
-                        setActiveCategory(cats[0].id);
-                    } else {
-                        throw new Error("Usando fallback");
-                    }
-                } catch (e) {
-                    const defaultCats = [
-                        { id: 1, name: 'BURGERS' },
-                        { id: 2, name: 'HAMBURGUERES' },
-                        { id: 3, name: 'CHICKEN' },
-                        { id: 4, name: 'PORÇÕES' },
-                        { id: 5, name: 'CACHORRO QUENTE' },
-                        { id: 6, name: 'PASTEIS' },
-                        { id: 7, name: 'SOBREMESAS' },
-                        { id: 8, name: 'BEBIDAS' },
-                        { id: 9, name: 'Adicionais' },
-                        { id: 10, name: 'Combo Artesanal' },
-                        { id: 11, name: 'Fritas' }
-                    ];
-                    setCategories(defaultCats);
-                    setActiveCategory(defaultCats[0].id);
-                }
+                // 1. Categorias (Forçando a ordem fixa solicitada)
+                const defaultCats = [
+                    { id: 1, name: 'BURGERS' },
+                    { id: 2, name: 'HAMBURGUERES' },
+                    { id: 3, name: 'CHICKEN' },
+                    { id: 4, name: 'PORÇÕES' },
+                    { id: 5, name: 'CACHORRO QUENTE' },
+                    { id: 6, name: 'PASTEIS' },
+                    { id: 7, name: 'SOBREMESAS' },
+                    { id: 8, name: 'BEBIDAS' },
+                    { id: 9, name: 'Adicionais' },
+                    { id: 10, name: 'Combo Artesanal' },
+                    { id: 11, name: 'Fritas' }
+                ];
+                setCategories(defaultCats);
+                setActiveCategory(defaultCats[0].id);
 
                 // 2. Produtos
                 try {
-                    if (!supabase) throw new Error("Supabase offline");
                     const { data: prods, error } = await supabase.from('products').select('*').order('name');
                     if (!error && prods) setProducts(prods);
                 } catch (e) { console.error("Erro ao buscar produtos:", e); }
 
                 // 3. Promoções
                 try {
-                    if (!supabase) throw new Error("Supabase offline");
                     const { data: promos, error } = await supabase.from('promotions').select('*').eq('active', true);
                     if (error) throw error;
                     if (promos) setPromotions(promos);
@@ -660,7 +631,6 @@
 
                 // 4. Configurações
                 try {
-                    if (!supabase) throw new Error("Supabase offline");
                     const { data: settings, error } = await supabase.from('settings').select('*').single();
                     if (!error && settings) setStoreSettings(prev => ({ ...prev, ...settings, isOpenManual: settings.is_open }));
                 } catch (e) { console.warn("Erro ao buscar settings:", e); }
@@ -846,19 +816,22 @@
             const LoginModal = ({ onClose, onLogin, onCreateAccount, onForgotPassword }) => {
                 const [email, setEmail] = useState('');
                 const [password, setPassword] = useState('');
+                const [keepConnected, setKeepConnected] = useState(true);
                 const [loading, setLoading] = useState(false);
 
                 const handleSupabaseLogin = async () => {
                     setLoading(true);
-                    try {
-                        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-                        if (error) throw error;
-                        onClose(); // O listener no App vai atualizar o user
-                    } catch (error) {
-                        addToast("Erro ao entrar: " + (error.message || "Tente novamente"), "error");
-                    } finally {
-                        setLoading(false);
+                    // O Supabase persiste por padrão (LOCAL), mas podemos forçar SESSION se desmarcado
+                    if (!keepConnected) {
+                        await supabase.auth.setPersistence('SESSION'); // Sessão expira ao fechar aba
+                    } else {
+                        await supabase.auth.setPersistence('LOCAL'); // Sessão persiste
                     }
+
+                    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+                    setLoading(false);
+                    if (error) addToast("Erro ao entrar: " + error.message, "error");
+                    else onClose(); // O listener no App vai atualizar o user
                 };
 
                 return (
@@ -880,6 +853,10 @@
                                 </div>
                                 <div>
                                     <button onClick={onForgotPassword} className="text-xs text-gray-400 hover:text-white underline">Esqueceu sua senha? Clique aqui</button>
+                                </div>
+                                <div className="flex items-center gap-2 pt-2">
+                                    <input type="checkbox" id="keepConnected" checked={keepConnected} onChange={e => setKeepConnected(e.target.checked)} className="accent-[#B11226] w-4 h-4 cursor-pointer" />
+                                    <label htmlFor="keepConnected" className="text-xs text-gray-400 cursor-pointer select-none">Manter-me conectado</label>
                                 </div>
                             </div>
                             <div className="mt-6 flex gap-3">
@@ -1303,11 +1280,11 @@
                                 >
                                     {user ? (
                                         <>
-                                            <div className="w-6 h-6 bg-[#B11226] rounded-full flex items-center justify-center text-[10px] font-bold uppercase">
-                                                {(user.name || 'U').charAt(0)}
+                                            <div className="w-6 h-6 bg-[#B11226] rounded-full flex items-center justify-center text-[10px] font-bold">
+                                                {user.name.charAt(0)}
                                             </div>
-                                            <span className="text-sm font-bold uppercase hidden md:inline">{(user.name || 'Usuário').split(' ')[0]}</span>
-                                            <span onClick={(e) => { e.stopPropagation(); supabase.auth.signOut(); setUser(null); }} className="ml-2 text-gray-500 hover:text-red-500" title="Sair">
+                                            <span className="text-sm font-bold uppercase hidden md:inline">{user.name.split(' ')[0]}</span>
+                                            <span onClick={(e) => { e.stopPropagation(); setUser(null); localStorage.removeItem('garage_user'); }} className="ml-2 text-gray-500 hover:text-red-500" title="Sair">
                                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
                                             </span>
                                         </>
@@ -1400,7 +1377,7 @@
                                     {/* Banner Desktop (Aparece em telas médias e grandes) */}
                                     <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/desktop.jpg" className="hidden md:block w-full h-full object-cover opacity-100" alt="Hero Desktop" />
                                     {/* Banner Mobile (Aparece apenas em celulares) - Substitua o src abaixo pela imagem vertical */}
-                                    <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/celular%20(1).jpg" className="block md:hidden w-full h-full object-cover opacity-100" alt="Hero Mobile" />
+                                    <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/celular.jpg" className="block md:hidden w-full h-full object-cover opacity-100" alt="Hero Mobile" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-black/20 to-transparent"></div><div className="absolute bottom-0 left-0 w-full p-8 md:p-12"><div className="max-w-4xl mx-auto"><span className="text-[#B11226] font-bold text-xs md:text-sm uppercase tracking-[0.2em] mb-3 block bg-black/60 w-fit px-3 py-1 rounded-full backdrop-blur-md border border-white/10">Artesanal & Raiz</span><h2 className="font-display text-4xl md:text-6xl font-bold text-white uppercase leading-none drop-shadow-2xl tracking-wide">Na Garagem</h2><p className="text-gray-200 text-xs md:text-base mt-3 max-w-lg drop-shadow font-sans font-medium">O verdadeiro sabor do hambúrguer feito na brasa. Sem frescura.</p></div></div></div>
                                 
                                 {promotions.length > 0 && <div className="mb-8 animate-fade-in"><div className="grid gap-4">{promotions.map(promo => (<div key={promo.id} className="bg-gradient-to-r from-[#B11226] to-[#800e1b] p-6 rounded-2xl shadow-lg flex flex-col md:flex-row items-center justify-between text-white relative overflow-hidden"><div className="absolute -right-10 -top-10 text-white/10"><svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg></div><div className="relative z-10"><h3 className="font-display text-2xl font-bold uppercase mb-1">{promo.title}</h3><p className="text-white/90 text-sm max-w-md">{promo.description}</p></div><div className="relative z-10 mt-4 md:mt-0 bg-white text-[#B11226] px-4 py-2 rounded-xl font-bold text-xl shadow-lg transform rotate-2">{promo.discount_percentage}% OFF</div></div>))}</div></div>}
