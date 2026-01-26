@@ -17,7 +17,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
 
     <!-- Supabase JS -->
-    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- Canvas Confetti -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
@@ -626,11 +626,14 @@
                 // Tenta buscar categorias do banco se disponível
                 if (supabase) {
                     try {
-                        const { data: cats, error } = await supabase.from('categories').select('*').order('display_order');
-                        if (!error && cats && cats.length > 0) {
+                        const { data: cats, error: catError } = await supabase.from('categories').select('*').order('display_order');
+                        if (catError) console.error("❌ Erro Categorias (index.html):", catError);
+
+                        if (cats && cats.length > 0) {
                             setCategories(cats);
                             setActiveCategory(cats[0].id);
                         } else {
+                            console.warn(`⚠️ Categorias retornaram ${cats?.length || 'null'}. Usando fallback. Verifique RLS. (index.html)`);
                             setCategories(defaultCats);
                             setActiveCategory(defaultCats[0].id);
                         }
@@ -647,8 +650,10 @@
 
                 // 2. Produtos
                 try {
-                    const { data: prods, error } = await supabase.from('products').select('*').order('name');
-                    if (!error && prods) setProducts(prods);
+                    const { data: prods, error: prodError } = await supabase.from('products').select('*').order('name');
+                    if (prodError) console.error("❌ Erro Produtos (index.html):", prodError);
+                    else console.log(`✅ Produtos encontrados (index.html): ${prods?.length || 0}`);
+                    if (prods) setProducts(prods);
                 } catch (e) { console.error("Erro ao buscar produtos:", e); }
 
                 // 3. Promoções
@@ -1408,7 +1413,7 @@
                                     {/* Banner Desktop (Aparece em telas médias e grandes) */}
                                     <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/desktop.jpg" className="hidden md:block w-full h-full object-cover opacity-100" alt="Hero Desktop" />
                                     {/* Banner Mobile (Aparece apenas em celulares) - Substitua o src abaixo pela imagem vertical */}
-                                    <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/celular.jpg" className="block md:hidden w-full h-full object-cover opacity-100" alt="Hero Mobile" />
+                                    <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/celular%20(1).jpg" className="block md:hidden w-full h-full object-cover opacity-100" alt="Hero Mobile" />
                                     <div className="absolute inset-0 bg-gradient-to-t from-[#121212] via-black/20 to-transparent"></div><div className="absolute bottom-0 left-0 w-full p-8 md:p-12"><div className="max-w-4xl mx-auto"><span className="text-[#B11226] font-bold text-xs md:text-sm uppercase tracking-[0.2em] mb-3 block bg-black/60 w-fit px-3 py-1 rounded-full backdrop-blur-md border border-white/10">Artesanal & Raiz</span><h2 className="font-display text-4xl md:text-6xl font-bold text-white uppercase leading-none drop-shadow-2xl tracking-wide">Na Garagem</h2><p className="text-gray-200 text-xs md:text-base mt-3 max-w-lg drop-shadow font-sans font-medium">O verdadeiro sabor do hambúrguer feito na brasa. Sem frescura.</p></div></div></div>
                                 
                                 {promotions.length > 0 && <div className="mb-8 animate-fade-in"><div className="grid gap-4">{promotions.map(promo => (<div key={promo.id} className="bg-gradient-to-r from-[#B11226] to-[#800e1b] p-6 rounded-2xl shadow-lg flex flex-col md:flex-row items-center justify-between text-white relative overflow-hidden"><div className="absolute -right-10 -top-10 text-white/10"><svg width="150" height="150" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"></path></svg></div><div className="relative z-10"><h3 className="font-display text-2xl font-bold uppercase mb-1">{promo.title}</h3><p className="text-white/90 text-sm max-w-md">{promo.description}</p></div><div className="relative z-10 mt-4 md:mt-0 bg-white text-[#B11226] px-4 py-2 rounded-xl font-bold text-xl shadow-lg transform rotate-2">{promo.discount_percentage}% OFF</div></div>))}</div></div>}
