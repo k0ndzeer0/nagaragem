@@ -96,7 +96,17 @@
         // Substitua pela sua URL e Key reais se necessário
         const supabaseUrl = 'https://zgeyjrmnkisomdlugupm.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnZXlqcm1ua2lzb21kbHVndXBtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkzMDU5MjEsImV4cCI6MjA4NDg4MTkyMX0.UK5O__2vwehjEQYGaPW3E2rPZZkiTFtXoWNJVKnmoLQ';
-        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+        
+        let supabase = null;
+        try {
+            if (window.supabase) {
+                supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+            } else {
+                console.error("Supabase não carregou. Verifique sua conexão ou bloqueadores de anúncio.");
+            }
+        } catch (err) {
+            console.error("Erro ao inicializar Supabase:", err);
+        }
 
         // --- TOAST CONTEXT ---
         const ToastContext = createContext();
@@ -545,8 +555,9 @@
             // --- LÓGICA DO ADMIN ---
             // Carregar dados reais se houver Supabase
             useEffect(() => {
+                fetchData(); // Chama fetchData independente do supabase existir (para carregar fallbacks se necessário)
+
                 if (supabase) {
-                    fetchData();
                     setupRealtime();
                     
                     // Listener de Autenticação
@@ -604,6 +615,7 @@
                 
                 // 1. Categorias (Prioriza o banco de dados para sincronia com Admin)
                 try {
+                    if (!supabase) throw new Error("Supabase offline");
                     const { data: cats, error } = await supabase.from('categories').select('*').order('display_order');
                     if (!error && cats && cats.length > 0) {
                         setCategories(cats);
@@ -631,12 +643,14 @@
 
                 // 2. Produtos
                 try {
+                    if (!supabase) throw new Error("Supabase offline");
                     const { data: prods, error } = await supabase.from('products').select('*').order('name');
                     if (!error && prods) setProducts(prods);
                 } catch (e) { console.error("Erro ao buscar produtos:", e); }
 
                 // 3. Promoções
                 try {
+                    if (!supabase) throw new Error("Supabase offline");
                     const { data: promos, error } = await supabase.from('promotions').select('*').eq('active', true);
                     if (error) throw error;
                     if (promos) setPromotions(promos);
@@ -646,6 +660,7 @@
 
                 // 4. Configurações
                 try {
+                    if (!supabase) throw new Error("Supabase offline");
                     const { data: settings, error } = await supabase.from('settings').select('*').single();
                     if (!error && settings) setStoreSettings(prev => ({ ...prev, ...settings, isOpenManual: settings.is_open }));
                 } catch (e) { console.warn("Erro ao buscar settings:", e); }
