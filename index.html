@@ -110,41 +110,58 @@
                 const client = window.supabase.createClient(this.url, this.key);
                 console.log("[DEBUG_SUPABASE] Client inicializado com sucesso.");
                 return client;
-            },
-            get headers() {
-                // Pega token do localStorage se existir
-                const session = JSON.parse(localStorage.getItem('garage_session') || '{}');
-                const token = session.access_token ? session.access_token : this.key;
-                return {
-                    'apikey': this.key,
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json',
-                    'Prefer': 'return=representation'
-                };
             }
         };
 
         // Inicializa cliente global para compatibilidade
         const supabase = SUPABASE_CONFIG.client;
 
-        // Função Helper para Requisições REST
-        async function supabaseRequest(endpoint, method = 'GET', body = null, customHeaders = {}) {
+        // --- 2. FUNÇÃO CENTRALIZADA DE FETCH (CORREÇÃO 401) ---
+        async function supabaseFetch(endpoint, options = {}) {
+            const { method = 'GET', body = null, headers = {}, useUserToken = false } = options;
+            
             try {
                 const url = `${SUPABASE_CONFIG.url}/rest/v1/${endpoint}`;
-                const options = {
-                    method,
-                    headers: { ...SUPABASE_CONFIG.headers, ...customHeaders },
-                };
-                if (body) options.body = JSON.stringify(body);
-
-                console.log(`[DEBUG_SUPABASE_LOAD] ${method} ${url}`);
-                const response = await fetch(url, options);
                 
-                if (!response.ok) throw new Error(`Erro ${response.status}: ${response.statusText}`);
-                if (response.status === 204) return null;
+                // Headers Padrão
+                const requestHeaders = {
+                    'apikey': SUPABASE_CONFIG.key,
+                    'Content-Type': 'application/json',
+                    'Prefer': 'return=representation',
+                    ...headers
+                };
+
+                // Lógica de Autorização:
+                // Padrão: Usa ANON KEY (para produtos, categorias, etc - evita erro 401 se token de user expirar)
+                // Opcional: Usa TOKEN DE USUÁRIO se useUserToken=true (para pedidos, perfil)
+                let token = SUPABASE_CONFIG.key;
+                if (useUserToken) {
+                    const session = JSON.parse(localStorage.getItem('garage_session') || '{}');
+                    if (session.access_token) token = session.access_token;
+                }
+                requestHeaders['Authorization'] = `Bearer ${token}`;
+
+                const fetchOptions = {
+                    method,
+                    headers: requestHeaders,
+                };
+                if (body) fetchOptions.body = JSON.stringify(body);
+
+                // console.log(`[SUPABASE_FETCH] ${method} ${url}`); // Debug opcional
+                const response = await fetch(url, fetchOptions);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error(`❌ [SUPABASE_ERROR] ${response.status} ${response.statusText}`);
+                    console.error(`🔗 URL: ${url}`);
+                    console.error(`📄 Body: ${errorText}`);
+                    throw new Error(`Erro Supabase ${response.status}: ${errorText}`);
+                }
+
+                if (response.status === 204) return null; // No Content
                 return await response.json();
             } catch (error) {
-                console.error(`[DEBUG_SUPABASE_LOAD] Erro na requisição:`, error);
+                console.error(`[SUPABASE_FETCH_FATAL]`, error);
                 return null;
             }
         }
@@ -313,6 +330,7 @@
             const [categories, setCategories] = useState([]);
             const [products, setProducts] = useState([]);
             const [reviews, setReviews] = useState([]);
+            const [variantGroups, setVariantGroups] = useState([]);
             const [promotions, setPromotions] = useState([]);
             const [cart, setCart] = useState([]);
             const [isCartOpen, setIsCartOpen] = useState(false);
@@ -348,6 +366,8 @@
             const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
             const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
             const [showNewsletter, setShowNewsletter] = useState(false);
+            const [showTermsModal, setShowTermsModal] = useState(false);
+            const [showPrivacyModal, setShowPrivacyModal] = useState(false);
 
             // --- CHECK DE INICIALIZAÇÃO ---
             if (!supabase) {
@@ -520,6 +540,7 @@
 
                 cart.forEach(item => {
                     msg += `▪️ ${item.quantity}x ${item.name}\n`;
+                    if (item.variant_label) msg += `   🔹 Opção: ${item.variant_label}\n`;
                     if (item.doneness) msg += `   🥩 Ponto: ${item.doneness}\n`;
                     if (item.observation) msg += `   📝 Obs: ${item.observation}\n`;
                 });
@@ -588,7 +609,7 @@
                 if (!user) return;
                 setLoading(true);
                 try {
-                    const orders = await supabaseRequest(`orders?select=*&user_id=eq.${user.id}&order=created_at.desc&limit=1`);
+                    const orders = await supabaseFetch(`orders?select=*&user_id=eq.${user.id}&order=created_at.desc&limit=1`, { useUserToken: true });
                     if (!orders || orders.length === 0) {
                         addToast("Nenhum pedido anterior encontrado.", "error");
                     } else {
@@ -659,7 +680,7 @@
                 console.log("[DEBUG_AUTH] Verificando sessão para:", authUser.email);
                 let profile = {};
                 try {
-                    const profiles = await supabaseRequest(`usuarios?id=eq.${authUser.id}&select=*`);
+                    const profiles = await supabaseFetch(`usuarios?id=eq.${authUser.id}&select=*`, { useUserToken: true });
                     if (profiles && profiles.length > 0) profile = profiles[0];
                 } catch (e) { console.warn("[DEBUG_AUTH] Erro ao buscar perfil:", e); }
                 
@@ -679,7 +700,6 @@
                 
                 // 1. Categorias (Forçando a ordem fixa solicitada)
                 const defaultCats = [
-                    { id: 1, name: 'BURGERS' },
                     { id: 2, name: 'HAMBURGUERES' },
                     { id: 3, name: 'CHICKEN' },
                     { id: 4, name: 'PORÇÕES' },
@@ -694,10 +714,31 @@
                 
                 // Tenta buscar categorias do banco se disponível
                 try {
-                    const cats = await supabaseRequest('categories?select=*&order=display_order.asc');
+                    const cats = await supabaseFetch('categories?select=*&order=display_order.asc');
                     if (cats && cats.length > 0) {
-                        setCategories(cats);
-                        setActiveCategory(cats[0].id);
+                        // --- PROTEÇÃO CONTRA DUPLICIDADE ---
+                        const uniqueCats = [];
+                        const seen = new Set();
+
+                        cats.forEach(cat => {
+                            let name = cat.name.trim().toUpperCase();
+                            if (name === 'BURGERS') name = 'HAMBURGUERES'; // Mapeia visualmente
+
+                            if (!seen.has(name)) {
+                                seen.add(name);
+                                uniqueCats.push({ ...cat, name }); // Usa o nome unificado
+                            }
+                        });
+
+                        // Força HAMBURGUERES para o topo da lista
+                        uniqueCats.sort((a, b) => {
+                            if (a.name === 'HAMBURGUERES') return -1;
+                            if (b.name === 'HAMBURGUERES') return 1;
+                            return (a.display_order || 99) - (b.display_order || 99);
+                        });
+
+                        setCategories(uniqueCats);
+                        setActiveCategory(uniqueCats[0].id);
                     } else {
                         setCategories(defaultCats);
                         setActiveCategory(defaultCats[0].id);
@@ -709,7 +750,7 @@
 
                 // 2. Produtos
                 try {
-                    const prods = await supabaseRequest('products?select=*&order=name.asc');
+                    const prods = await supabaseFetch('products?select=*&order=name.asc');
                     
                     if (prods) {
                         // Normalização de campos (available/is_active null vira true)
@@ -726,9 +767,15 @@
                     }
                 } catch (e) { console.error("Erro ao buscar produtos:", e); }
 
+                // 2.1 Grupos de Variação
+                try {
+                    const vgs = await supabaseFetch('variant_groups?select=*');
+                    if (vgs) setVariantGroups(vgs);
+                } catch (e) { console.warn("Erro ao buscar variações:", e); }
+
                 // 3. Promoções
                 try {
-                    const promos = await supabaseRequest('promotions?select=*&active=eq.true');
+                    const promos = await supabaseFetch('promotions?select=*&active=eq.true');
                     if (promos) setPromotions(promos);
                 } catch (e) { 
                     console.warn("Promoções não carregadas (tabela pode não existir ou erro de conexão):", e); 
@@ -736,7 +783,7 @@
 
                 // 4. Configurações
                 try {
-                    const settingsArr = await supabaseRequest('settings?select=*&limit=1');
+                    const settingsArr = await supabaseFetch('settings?select=*&limit=1');
                     if (settingsArr && settingsArr.length > 0) {
                         const settings = settingsArr[0];
                         setStoreSettings(prev => ({ ...prev, ...settings, isOpenManual: settings.is_open }));
@@ -763,6 +810,52 @@
             // --- MODAL DE DETALHES DO PRODUTO ---
             const ProductDetailsModal = ({ product, onClose, onAdd }) => {
                 const [doneness, setDoneness] = useState('Ao Ponto');
+                const [selectedVariant, setSelectedVariant] = useState(null);
+                
+                // Lógica de Variação (Baseada no Grupo do Banco)
+                const variantGroup = useMemo(() => {
+                    if (product.variant_group_id && variantGroups.length > 0) {
+                        return variantGroups.find(vg => vg.id === product.variant_group_id);
+                    }
+                    return null;
+                }, [product, variantGroups]);
+
+                const variantOptions = useMemo(() => {
+                    if (!variantGroup || !product.variant_prices) return [];
+                    // Filtra apenas opções que têm preço definido no produto
+                    return variantGroup.options.filter(o => product.variant_prices[o.id] !== undefined && product.variant_prices[o.id] !== null);
+                }, [variantGroup, product]);
+                
+                // Preço Dinâmico
+                const currentPrice = useMemo(() => {
+                    if (selectedVariant && product.variant_prices) {
+                        return product.variant_prices[selectedVariant] || product.price;
+                    }
+                    return product.price;
+                }, [selectedVariant, product]);
+
+                const handleAddToCart = (e) => {
+                    if (variantOptions.length > 0 && !selectedVariant) {
+                        addToast("Selecione uma opção!", "error");
+                        return;
+                    }
+                    
+                    const variantInfo = selectedVariant ? {
+                        id: selectedVariant,
+                        label: variantOptions.find(o => o.id === selectedVariant)?.label,
+                        price: product.variant_prices[selectedVariant]
+                    } : null;
+
+                    onAdd({ 
+                        ...product, 
+                        price: variantInfo ? variantInfo.price : currentPrice, 
+                        doneness: product.has_doneness ? doneness : null,
+                        variant_id: variantInfo?.id,
+                        variant_label: variantInfo?.label
+                    }, e);
+                    onClose();
+                };
+
                 if (!product) return null;
                 return (
                     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
@@ -782,7 +875,7 @@
                             <div className="p-8">
                                 <div className="flex justify-between items-start mb-2">
                                     <h2 className="font-display text-3xl font-bold uppercase text-white leading-tight">{product.name}</h2>
-                                    <span className="text-[#B11226] font-display font-bold text-2xl whitespace-nowrap">R$ {product.price.toFixed(2)}</span>
+                                    <span className="text-[#B11226] font-display font-bold text-2xl whitespace-nowrap">R$ {currentPrice.toFixed(2)}</span>
                                 </div>
                                 <div className="flex gap-2 mb-6">
                                     <span className="text-[10px] font-bold uppercase bg-gray-800 text-gray-400 px-2 py-1 rounded">Artesanal</span>
@@ -792,6 +885,25 @@
                                     <div><h3 className="text-xs font-bold text-[#B11226] uppercase tracking-widest mb-2">Descrição</h3><p className="text-gray-300 text-base leading-relaxed font-sans">{product.description}</p></div>
                                     <div><h3 className="text-xs font-bold text-[#B11226] uppercase tracking-widest mb-2">Ingredientes</h3><p className="text-gray-400 text-sm leading-relaxed">Nossos burgers são feitos com blend 100% bovino, moído diariamente. Pão brioche selado na manteiga, queijos selecionados e vegetais frescos entregues toda manhã.</p></div>
                                     
+                                    {/* Seletor de Variação */}
+                                    {variantOptions.length > 0 && (
+                                        <div>
+                                            <h3 className="text-xs font-bold text-[#B11226] uppercase tracking-widest mb-2">{variantGroup?.name || 'Escolha uma opção'}</h3>
+                                            <div className="flex flex-col gap-2">
+                                                {variantOptions.map(opt => (
+                                                    <label key={opt.id} className={`flex items-center justify-between p-3 rounded border cursor-pointer transition-all ${selectedVariant === opt.id ? 'bg-[#B11226]/20 border-[#B11226]' : 'bg-[#121212] border-gray-700 hover:border-gray-500'}`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${selectedVariant === opt.id ? 'border-[#B11226]' : 'border-gray-500'}`}>{selectedVariant === opt.id && <div className="w-2 h-2 bg-[#B11226] rounded-full"></div>}</div>
+                                                            <span className="text-sm font-bold text-white">{opt.label}</span>
+                                                        </div>
+                                                        <span className="text-sm font-bold text-white">R$ {product.variant_prices[opt.id].toFixed(2)}</span>
+                                                        <input type="radio" name="variant" className="hidden" value={opt.id} checked={selectedVariant === opt.id} onChange={() => setSelectedVariant(opt.id)} />
+                                                    </label>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
                                     {product.has_doneness && (
                                         <div>
                                             <h3 className="text-xs font-bold text-[#B11226] uppercase tracking-widest mb-2">Ponto da Carne</h3>
@@ -804,7 +916,7 @@
                                     )}
                                 </div>
                                 <div className="mt-8 pt-6 border-t border-gray-800">
-                                    <button onClick={(e) => { onAdd({ ...product, doneness: product.has_doneness ? doneness : null }, e); onClose(); }} className="w-full bg-[#B11226] text-white font-bold uppercase py-4 rounded-xl hover:bg-red-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
+                                    <button onClick={handleAddToCart} className="w-full bg-[#B11226] text-white font-bold uppercase py-4 rounded-xl hover:bg-red-700 transition-all active:scale-95 shadow-lg flex items-center justify-center gap-2">
                                         <span>Adicionar ao Pedido</span>
                                         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
                                     </button>
@@ -938,7 +1050,7 @@
                         
                         // O Auth Listener no useEffect vai pegar isso, mas forçamos aqui para UI imediata
                         if (data.user) {
-                            const profiles = await supabaseRequest(`usuarios?id=eq.${data.user.id}&select=*`);
+                            const profiles = await supabaseFetch(`usuarios?id=eq.${data.user.id}&select=*`, { useUserToken: true });
                             const profile = profiles && profiles.length > 0 ? profiles[0] : {};
                             const safeUser = { ...data.user, ...profile };
                             if (!safeUser.name) safeUser.name = getUserDisplayName(safeUser);
@@ -1095,7 +1207,9 @@
                         // 2. Garante persistência na tabela 'usuarios' (Upsert para evitar conflito com Trigger)
                         if (data?.user) {
                             // Upsert via REST
-                            await supabaseRequest('usuarios', 'POST', {
+                            await supabaseFetch('usuarios', { 
+                                method: 'POST', 
+                                body: {
                                 id: data.user.id,
                                 email: formData.email,
                                 name: formData.name,
@@ -1104,7 +1218,10 @@
                                 cep: formData.cep,
                                 neighborhood: formData.neighborhood,
                                 fidelidade_ativo: true // Ativa fidelidade
-                            }, { 'Prefer': 'resolution=merge-duplicates' });
+                                },
+                                headers: { 'Prefer': 'resolution=merge-duplicates' },
+                                useUserToken: true
+                            });
                         }
 
                         const newUser = {
@@ -1310,6 +1427,87 @@
                 );
             };
 
+            const TermsModal = ({ onClose }) => (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose}></div>
+                    <div className="relative w-full max-w-2xl bg-[#1F1F1F] rounded-xl p-6 border border-gray-800 shadow-2xl animate-fade-in overflow-y-auto max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-display text-xl font-bold uppercase text-white">Termos de Uso</h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                        </div>
+                        <div className="space-y-4 text-gray-300 text-sm leading-relaxed font-sans">
+                            <p>Bem-vindo ao Na Garagem! Ao utilizar nosso sistema de pedidos, você concorda com os termos abaixo:</p>
+                            
+                            <div className="bg-[#B11226]/10 border border-[#B11226]/30 p-4 rounded-lg my-4">
+                                <h4 className="font-bold text-[#B11226] uppercase mb-1 flex items-center gap-2">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                    Aviso Importante
+                                </h4>
+                                <p className="text-white font-bold">As imagens dos produtos exibidas neste site são meramente ilustrativas.</p>
+                                <p className="text-xs mt-1 text-gray-400">Os produtos reais podem apresentar variações de montagem, cor, tamanho ou apresentação, dependendo da disponibilidade de ingredientes frescos e do processo artesanal de preparo.</p>
+                            </div>
+
+                            <h4 className="font-bold text-white uppercase mt-4">1. Pedidos e Disponibilidade</h4>
+                            <p>Todos os pedidos estão sujeitos à confirmação e disponibilidade de estoque. Reservamo-nos o direito de cancelar pedidos em caso de inconsistências, falta de insumos ou problemas técnicos.</p>
+
+                            <h4 className="font-bold text-white uppercase mt-4">2. Preços e Pagamento</h4>
+                            <p>Os preços podem sofrer alterações sem aviso prévio. O valor final a ser pago é aquele apresentado no momento da confirmação do pedido no carrinho de compras.</p>
+
+                            <h4 className="font-bold text-white uppercase mt-4">3. Entregas e Retiradas</h4>
+                            <p>O tempo de entrega informado é uma estimativa e pode variar conforme a demanda da cozinha, condições climáticas e de trânsito. Para retiradas, aguarde a confirmação de que o pedido está pronto.</p>
+                        </div>
+                        <div className="mt-6 pt-4 border-t border-gray-800 text-center">
+                            <button onClick={onClose} className="bg-[#B11226] text-white font-bold uppercase py-3 px-8 rounded hover:bg-red-700 transition-colors w-full md:w-auto">Li e Concordo</button>
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const PrivacyModal = ({ onClose }) => (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose}></div>
+                    <div className="relative w-full max-w-2xl bg-[#1F1F1F] rounded-xl p-6 border border-gray-800 shadow-2xl animate-fade-in overflow-y-auto max-h-[90vh]">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-display text-xl font-bold uppercase text-white">Política de Privacidade</h3>
+                            <button onClick={onClose} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                        </div>
+                        <div className="space-y-4 text-gray-300 text-sm leading-relaxed font-sans">
+                            <p>A sua privacidade é importante para o Na Garagem. Esta política explica como coletamos, usamos e protegemos seus dados.</p>
+                            
+                            <h4 className="font-bold text-white uppercase mt-4">1. Coleta de Dados</h4>
+                            <p>Coletamos apenas as informações necessárias para processar seu pedido e oferecer nosso programa de fidelidade:</p>
+                            <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                                <li>Nome completo</li>
+                                <li>Número de telefone (WhatsApp)</li>
+                                <li>Endereço de entrega</li>
+                                <li>Histórico de pedidos</li>
+                            </ul>
+
+                            <h4 className="font-bold text-white uppercase mt-4">2. Uso das Informações</h4>
+                            <p>Seus dados são utilizados exclusivamente para:</p>
+                            <ul className="list-disc pl-5 space-y-1 text-gray-400">
+                                <li>Preparar e entregar seus pedidos.</li>
+                                <li>Enviar atualizações sobre o status do pedido via WhatsApp.</li>
+                                <li>Gerenciar seus pontos no Programa de Fidelidade.</li>
+                                <li>Melhorar nosso atendimento e serviços.</li>
+                            </ul>
+
+                            <h4 className="font-bold text-white uppercase mt-4">3. Compartilhamento</h4>
+                            <p>Não vendemos nem compartilhamos seus dados pessoais com terceiros para fins de marketing. Seus dados podem ser compartilhados apenas com entregadores parceiros para a realização da entrega.</p>
+
+                            <h4 className="font-bold text-white uppercase mt-4">4. Segurança</h4>
+                            <p>Adotamos medidas de segurança para proteger seus dados contra acesso não autorizado. As informações são armazenadas em banco de dados seguro.</p>
+
+                            <h4 className="font-bold text-white uppercase mt-4">5. Seus Direitos</h4>
+                            <p>Você tem o direito de solicitar a visualização, correção ou exclusão dos seus dados pessoais a qualquer momento. Para isso, entre em contato conosco pelo WhatsApp.</p>
+                        </div>
+                        <div className="mt-6 pt-4 border-t border-gray-800 text-center">
+                            <button onClick={onClose} className="bg-[#B11226] text-white font-bold uppercase py-3 px-8 rounded hover:bg-red-700 transition-colors w-full md:w-auto">Entendi</button>
+                        </div>
+                    </div>
+                </div>
+            );
+
             // Listener para abrir modal de indicação via evento
             useEffect(() => {
                 const handleOpenReferral = () => setShowReferralModal(true);
@@ -1363,6 +1561,10 @@
 
                         <div className="flex flex-col items-center gap-4">
                             <p className="text-gray-800 text-xs uppercase tracking-widest">© {new Date().getFullYear()} Na Garagem Burguer</p>
+                        </div>
+                        <div className="text-center mt-2 flex justify-center gap-4">
+                            <button onClick={() => setShowTermsModal(true)} className="text-[10px] text-gray-600 hover:text-gray-400 underline uppercase">Termos de Uso</button>
+                            <button onClick={() => setShowPrivacyModal(true)} className="text-[10px] text-gray-600 hover:text-gray-400 underline uppercase">Política de Privacidade</button>
                         </div>
                         <div className="text-center mt-4 text-gray-600 text-xs">
                             <p>(14) 3737-1017</p>
@@ -1486,6 +1688,8 @@
                         {viewProduct && <ProductDetailsModal product={viewProduct} onClose={() => setViewProduct(null)} onAdd={handleProductClick} />}
                         {showHistoryModal && <OrderHistoryModal history={orderHistory} onClose={() => setShowHistoryModal(false)} onRepeat={handleRepeatOrder} />}
                         {showNewsletter && <NewsletterBanner onClose={handleCloseNewsletter} onRegister={handleRegisterNewsletter} />}
+                        {showTermsModal && <TermsModal onClose={() => setShowTermsModal(false)} />}
+                        {showPrivacyModal && <PrivacyModal onClose={() => setShowPrivacyModal(false)} />}
                     </div>
 
                     {/* --- CONTEÚDO PRINCIPAL --- */}
@@ -1571,7 +1775,16 @@
                                                         <div className="p-5 flex flex-col flex-1 bg-black/60 backdrop-blur-md border-t border-white/5">
                                                             <p className="text-gray-400 text-sm font-sans leading-relaxed mb-4 line-clamp-2 flex-grow">{p.description}</p>
                                                             <div className="flex items-center justify-between mt-auto gap-3">
-                                                                <span className="text-brand-amber font-display font-bold text-2xl drop-shadow-sm">R$ {p.price.toFixed(2)}</span>
+                                                                <div className="flex flex-col">
+                                                                    {p.variant_prices && Object.keys(p.variant_prices).length > 0 ? (
+                                                                        <>
+                                                                            <span className="text-[10px] text-gray-400 uppercase font-bold">A partir de</span>
+                                                                            <span className="text-brand-amber font-display font-bold text-2xl drop-shadow-sm">R$ {Math.min(...Object.values(p.variant_prices)).toFixed(2)}</span>
+                                                                        </>
+                                                                    ) : (
+                                                                        <span className="text-brand-amber font-display font-bold text-2xl drop-shadow-sm">R$ {p.price.toFixed(2)}</span>
+                                                                    )}
+                                                                </div>
                                                                 <button 
                                                                     onClick={(e) => handleProductClick(p, e)}
                                                                     className="bg-white text-black font-display font-bold uppercase px-6 py-2.5 rounded-xl hover:bg-[#B11226] hover:text-white transition-all duration-300 active:scale-95 shadow-lg text-sm"
@@ -1608,12 +1821,16 @@
                                                 <div>
                                                     <h4 className="font-bold text-sm uppercase">{item.name}</h4>
                                                     <p className="text-[#B11226] text-sm">R$ {(item.price * item.quantity).toFixed(2)}</p>
+                                                    {item.variant_label && <span className="text-[10px] text-white block bg-[#B11226]/50 px-1 rounded w-fit mt-1">{item.variant_label}</span>}
                                                     {item.doneness && <span className="text-[10px] text-gray-400 block bg-gray-800 px-1 rounded w-fit mt-1">Ponto: {item.doneness}</span>}
                                                 </div>
-                                                <div className="flex items-center border border-gray-700 rounded">
-                                                    <button onClick={() => updateQuantity(item.id, -1)} className="px-2 py-1 hover:bg-gray-800">-</button>
-                                                    <span className="px-2 text-sm">{item.quantity}</span>
-                                                    <button onClick={() => updateQuantity(item.id, 1)} className="px-2 py-1 hover:bg-gray-800">+</button>
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex items-center border border-gray-700 rounded">
+                                                        <button onClick={() => updateQuantity(item.id, -1)} className="px-2 py-1 hover:bg-gray-800">-</button>
+                                                        <span className="px-2 text-sm">{item.quantity}</span>
+                                                        <button onClick={() => updateQuantity(item.id, 1)} className="px-2 py-1 hover:bg-gray-800">+</button>
+                                                    </div>
+                                                    <button onClick={() => removeFromCart(item.id)} className="text-gray-500 hover:text-red-500 p-1" title="Remover"><IconTrash /></button>
                                                 </div>
                                             </div>
                                             <input 
