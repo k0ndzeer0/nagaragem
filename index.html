@@ -479,203 +479,135 @@
         });
 
         // --- COMPONENTE HOME MOBILE LAUNCHER (APP STYLE) ---
-        const HomeMobileLauncher = ({ onEnter, onOpenLoyalty, onOpenHistory, onOpenLocation, onShare }) => {
-            // Ícones extraídos para evitar erro de parser no JSX inline
-            const Icons = {
-                Order: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>,
-                Menu: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
-                Loyalty: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
-                History: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path></svg>,
-                Location: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
-                Share: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            };
+        const HomeMobileLauncher = ({ onEnter, onOpenLoyalty, onOpenHistory, onOpenLocation, onShare, isOpen, onAdmin, onNewsletterRegister }) => {
+    const Icons = {
+        Menu: (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+        ),
+        Loyalty: (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+        ),
+        History: (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
+            </svg>
+        ),
+        Location: (
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        )
+    };
 
-            const LauncherBtn = ({ icon, label, onClick, highlight }) => (
-                // TAREFA: Visual Dark Premium
-                <button 
-                    onClick={onClick} 
-                    className={`
-                        relative rounded-2xl p-4 flex flex-col items-center justify-center gap-3 
-                        transition-all aspect-square group overflow-hidden
-                        ${highlight 
-                            ? 'bg-zinc-900/60 border border-[#B11226]/50 shadow-[0_0_20px_rgba(177,18,38,0.15)]' 
-                            : 'bg-white/5 border border-white/10 hover:bg-white/10'
-                        }
-                        active:scale-[0.98]
-                    `}
+    return (
+        <div className="relative min-h-dvh md:hidden text-white overflow-hidden">
+            <img
+                src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/fundos/Design%20sem%20nome%20(5).jpg"
+                alt="Fundo Na Garagem"
+                className="absolute inset-0 w-full h-full object-cover"
+                loading="lazy"
+                decoding="async"
+            />
+            <div className="absolute inset-0 bg-black/55"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/55 to-black/80"></div>
+
+            <div className="relative z-10 min-h-dvh flex flex-col items-center justify-end px-5 pt-12 pb-16 text-center">
+
+                <button
+                    onClick={onEnter}
+                    disabled={!isOpen}
+                    className={`mt-6 w-full max-w-md bg-[#B11226] text-white text-xl font-black uppercase tracking-wider py-6 rounded-3xl shadow-lg shadow-red-500/20 transition-transform ${
+                        isOpen ? 'active:scale-[0.98]' : 'opacity-60 cursor-not-allowed'
+                    }`}
                 >
-                    {highlight && (
-                        <div className="absolute top-2 right-2 bg-[#B11226] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
-                            Rápido
-                        </div>
-                    )}
-                    <div className={`${highlight ? 'text-[#B11226] drop-shadow-[0_0_8px_rgba(177,18,38,0.5)]' : 'text-[#B11226]'} group-hover:scale-110 transition-transform duration-300`}>
-                        {icon}
-                    </div>
-                    <span className="text-white font-display font-black uppercase text-[10px] md:text-xs tracking-wider text-center leading-tight">
-                        {label}
-                    </span>
+                    🍔 FAZER PEDIDO
                 </button>
-            );
 
-            return (
-                // TAREFA: Background Dark com Gradiente Sutil
-                <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-neutral-950 to-black flex flex-col md:hidden animate-fade-in relative z-50 overflow-hidden">
-                    {/* Texture Overlay (Ruído Sutil) */}
-                    <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] pointer-events-none mix-blend-overlay"></div>
-                    
-                    <div className="relative z-10 flex flex-col h-full">
-                        {/* Header: Logo Premium (Maior, Glow Vermelho, Sem Texto) */}
-                        <div className="flex flex-col items-center justify-center pt-12 pb-6 flex-shrink-0 relative">
-                            {/* Glow Vermelho Sutil Atrás */}
-                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#B11226] rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
-                            
-                            <div className="w-40 h-40 bg-zinc-900/80 rounded-full flex items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] p-5 border border-white/10 backdrop-blur-md ring-1 ring-white/5 relative z-10">
-                                <img 
-                                    src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/logos/logo%20na%20garagem%20sem%20fundo%20(2).png" 
-                                    className="w-full h-full object-contain drop-shadow-2xl" 
-                                    alt="Logo" 
-                                    loading="lazy"
-                                    decoding="async"
-                                />
-                            </div>
-                        </div>
+                <div className="mt-6 grid grid-cols-2 gap-4 w-full max-w-md">
+                    <button
+                        onClick={onEnter}
+                        className="min-h-[120px] rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col items-start justify-between shadow-sm active:scale-[0.99] transition-transform"
+                    >
+                        <div className="text-red-500">{Icons.Menu}</div>
+                        <span className="text-white uppercase font-black text-sm tracking-wider">CARDAPIO</span>
+                    </button>
 
-                        {/* Grid */}
-                        <div className="flex-1 px-6 pb-32 overflow-y-auto">
-                            <div className="grid grid-cols-2 gap-4">
-                                {/* Botão de Pedido removido do grid pois agora é fixo no rodapé, substituído por Cardápio como destaque ou mantendo fluxo */}
-                                <LauncherBtn icon={Icons.Menu} label="Cardápio" onClick={onEnter} />
-                                <LauncherBtn icon={Icons.Loyalty} label="Fidelidade" onClick={onOpenLoyalty} />
-                                <LauncherBtn icon={Icons.History} label="Meus Pedidos" onClick={onOpenHistory} />
-                                <LauncherBtn icon={Icons.Location} label="Localização" onClick={onOpenLocation} />
-                                <LauncherBtn icon={Icons.Share} label="Compartilhar" onClick={onShare} />
-                            </div>
-                        </div>
+                    <button
+                        onClick={onOpenLoyalty}
+                        className="min-h-[120px] rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col items-start justify-between shadow-sm active:scale-[0.99] transition-transform"
+                    >
+                        <div className="text-red-500">{Icons.Loyalty}</div>
+                        <span className="text-white uppercase font-black text-sm tracking-wider">FIDELIDADE</span>
+                    </button>
 
-                        {/* CTA Fixo no Rodapé (Conversão) */}
-                        <div className="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black via-black/90 to-transparent z-50 pb-[max(1rem,env(safe-area-inset-bottom))]">
-                            <button onClick={onEnter} className="w-full bg-[#25D366] text-black font-display font-bold uppercase text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(37,211,102,0.2)] hover:bg-[#20bd5a] transition-all active:scale-[0.98] flex items-center justify-center gap-2">
-                                <span>Fazer Pedido</span>
-                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
-                            </button>
-                        </div>
-                    </div>
+                    <button
+                        onClick={onOpenHistory}
+                        className="min-h-[120px] rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col items-start justify-between shadow-sm active:scale-[0.99] transition-transform"
+                    >
+                        <div className="text-red-500">{Icons.History}</div>
+                        <span className="text-white uppercase font-black text-sm tracking-wider">MEUS PEDIDOS</span>
+                    </button>
+
+                    <button
+                        onClick={onOpenLocation}
+                        className="min-h-[120px] rounded-2xl bg-white/5 border border-white/10 p-4 flex flex-col items-start justify-between shadow-sm active:scale-[0.99] transition-transform"
+                    >
+                        <div className="text-red-500">{Icons.Location}</div>
+                        <span className="text-white uppercase font-black text-sm tracking-wider">LOCALIZACAO</span>
+                    </button>
                 </div>
-            );
-        };
 
-        // --- COMPONENTE HOME MOBILE TEST (MOBILE ONLY) ---
-        const HomeMobileTest = ({ onEnter, onOpenLoyalty, onOpenHistory, onOpenLocation, onShare }) => {
-            const items = [
-                {
-                    label: 'Cardápio',
-                    onClick: onEnter,
-                    icon: (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    )
-                },
-                {
-                    label: 'Fidelidade',
-                    onClick: onOpenLoyalty,
-                    icon: (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                    )
-                },
-                {
-                    label: 'Meus pedidos',
-                    onClick: onOpenHistory,
-                    icon: (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
-                        </svg>
-                    )
-                },
-                {
-                    label: 'Localização',
-                    onClick: onOpenLocation,
-                    icon: (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                            <circle cx="12" cy="10" r="3"></circle>
-                        </svg>
-                    )
-                },
-                {
-                    label: 'Compartilhar',
-                    onClick: onShare,
-                    icon: (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="18" cy="5" r="3"></circle>
-                            <circle cx="6" cy="12" r="3"></circle>
-                            <circle cx="18" cy="19" r="3"></circle>
-                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-                        </svg>
-                    )
-                }
-            ];
-
-            return (
-                <div className="md:hidden min-h-screen bg-gradient-to-b from-black via-[#121212] to-[#0B0B0B] text-white relative overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05),_transparent_45%)] pointer-events-none"></div>
-                    <div className="relative z-10 flex flex-col min-h-screen px-5 pt-10 pb-24">
-                        {/* Logo grande, centralizada */}
-                        <div className="flex items-center justify-center">
-                            <img
-                                src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/logos/logo%20na%20garagem%20sem%20fundo%20(2).png"
-                                className="w-44 h-44 sm:w-52 sm:h-52 object-contain"
-                                alt="Logo Na Garagem"
-                                loading="lazy"
-                                decoding="async"
-                            />
-                        </div>
-
-                        {/* CTA principal */}
+                <div className="mt-6 w-full max-w-md bg-white/5 border border-white/10 rounded-2xl p-4">
+                    <h4 className="text-white font-black uppercase text-sm mb-2">Newsletter</h4>
+                    <p className="text-white/70 text-xs mb-3">Receba novidades e promoções no seu e-mail.</p>
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <input
+                            type="email"
+                            placeholder="Seu melhor e-mail"
+                            className="w-full bg-black/30 border border-white/10 rounded-xl px-4 py-3 text-white text-sm placeholder-white/50 focus:outline-none focus:border-white/30"
+                        />
                         <button
-                            onClick={onEnter}
-                            className="mt-6 w-full bg-[#B11226] text-white text-base font-extrabold uppercase tracking-wider py-4 rounded-2xl shadow-[0_14px_40px_rgba(177,18,38,0.35)] active:scale-[0.98] transition-transform"
+                            onClick={onNewsletterRegister}
+                            className="w-full sm:w-auto bg-white text-black font-black uppercase text-xs px-5 py-3 rounded-xl"
                         >
-                            🍔 FAZER PEDIDO
-                        </button>
-
-                        {/* Atalhos */}
-                        <div className="mt-6 flex flex-col gap-3">
-                            {items.map(item => (
-                                <button
-                                    key={item.label}
-                                    onClick={item.onClick}
-                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/90 hover:bg-white/10 transition-colors"
-                                >
-                                    <span className="text-white/70">{item.icon}</span>
-                                    <span className="text-sm font-semibold">{item.label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* CTA final (reforço) */}
-                    <div className="fixed bottom-0 left-0 w-full md:hidden px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent">
-                        <button
-                            onClick={onEnter}
-                            className="w-full rounded-xl border border-white/20 bg-white/10 text-white/90 uppercase text-sm font-bold py-3 tracking-widest"
-                        >
-                            FAZER PEDIDO
+                            Participar
                         </button>
                     </div>
                 </div>
-            );
-        };
 
-        // --- COMPONENTE PRINCIPAL (APP) ---
+                <button
+                    onClick={onShare}
+                    className="mt-6 w-full max-w-md bg-white/10 border border-white/20 text-white uppercase font-black tracking-widest text-xl py-6 rounded-3xl shadow-lg shadow-black/20 active:scale-[0.98] transition-transform"
+                >
+                    COMPARTILHAR
+                </button>
+
+                <button
+                    onClick={onAdmin}
+                    className="mt-3 text-[10px] uppercase tracking-widest text-white/50 hover:text-white/80"
+                >
+                    Admin
+                </button>
+            </div>
+        </div>
+    );
+};
+
+const DEFAULT_STORE_SCHEDULE = {
+    mon: true, tue: true, wed: false, thu: true, fri: true, sat: true, sun: true,
+    temporaryClosed: false,
+    message: ''
+};
+
+// --- COMPONENTE PRINCIPAL (APP) ---
         const App = () => {
             const { addToast } = useToast();
-            const useMobileHomeTest = true;
             const [authMode, setAuthMode] = useState(null); // 'login', 'register', 'forgotPassword'
             const [view, setView] = useState('client'); 
             const [categories, setCategories] = useState([]);
@@ -714,12 +646,16 @@
                 openTime: '19:00',
                 closeTime: '23:00'
             });
+            const [storeSchedule, setStoreSchedule] = useState(DEFAULT_STORE_SCHEDULE);
+            const [showScheduleModal, setShowScheduleModal] = useState(false);
+            const [scheduleDraft, setScheduleDraft] = useState(DEFAULT_STORE_SCHEDULE);
             const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
             const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
             const [showNewsletter, setShowNewsletter] = useState(false);
             const [showTermsModal, setShowTermsModal] = useState(false);
             const [showPrivacyModal, setShowPrivacyModal] = useState(false);
             const [showMobileLauncher, setShowMobileLauncher] = useState(true); // Controle do Launcher Mobile
+            const [showLoyaltyAuth, setShowLoyaltyAuth] = useState(false);
             
             // --- TAREFA C: SCROLL LOCK ---
             // Trava o scroll do body quando o carrinho está aberto
@@ -741,6 +677,100 @@
                 window.addEventListener('resize', handleResize);
                 return () => window.removeEventListener('resize', handleResize);
             }, []);
+
+            const scheduleKey = 'store_schedule';
+
+            const getStoreSchedule = async () => {
+                try {
+                    const data = await supabaseFetch('store_schedule?select=*&id=eq.1');
+                    if (data && data[0]) return { ...DEFAULT_STORE_SCHEDULE, ...data[0] };
+                } catch (e) {}
+                try {
+                    const raw = localStorage.getItem(scheduleKey);
+                    if (raw) return { ...DEFAULT_STORE_SCHEDULE, ...JSON.parse(raw) };
+                } catch (e) {}
+                return DEFAULT_STORE_SCHEDULE;
+            };
+
+            const saveStoreSchedule = async (schedule) => {
+                setStoreSchedule(schedule);
+                try {
+                    await supabaseFetch('store_schedule', {
+                        method: 'POST',
+                        body: { id: 1, ...schedule },
+                        headers: { 'Prefer': 'resolution=merge-duplicates' }
+                    });
+                } catch (e) {}
+                localStorage.setItem(scheduleKey, JSON.stringify(schedule));
+            };
+
+            const isStoreOpenNow = (schedule, date = new Date()) => {
+                const s = schedule || DEFAULT_STORE_SCHEDULE;
+                if (s.temporaryClosed) return false;
+                const day = date.getDay();
+                const map = ['sun','mon','tue','wed','thu','fri','sat'];
+                return s[map[day]] === true;
+            };
+
+            const getStoreClosedMessage = (schedule, date = new Date()) => {
+                const s = schedule || DEFAULT_STORE_SCHEDULE;
+                if (s.temporaryClosed) return s.message || 'Loja fechada no momento.';
+                const day = date.getDay();
+                const map = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+                if (s[(['sun','mon','tue','wed','thu','fri','sat'][day])] === false) {
+                    return `Hoje (${map[day]}) estamos fechados.`;
+                }
+                return 'Loja fechada no momento.';
+            };
+
+            useEffect(() => {
+                let mounted = true;
+                getStoreSchedule().then(s => {
+                    if (mounted) {
+                        setStoreSchedule(s);
+                        setScheduleDraft(s);
+                    }
+                });
+                return () => { mounted = false; };
+            }, []);
+
+            useEffect(() => {
+                if (user) return;
+                const raw = localStorage.getItem('ng_user');
+                if (raw) {
+                    try { setUser(JSON.parse(raw)); } catch (e) {}
+                }
+            }, []);
+
+            const handleOrderClick = () => {
+                if (!isStoreOpenNow(storeSchedule)) {
+                    addToast(getStoreClosedMessage(storeSchedule), "error");
+                    return;
+                }
+                setShowMobileLauncher(false);
+            };
+
+            const handleOpenLoyalty = () => {
+                const localUser = localStorage.getItem('ng_user');
+                const resolvedUser = user || (localUser ? JSON.parse(localUser) : null);
+                if (!resolvedUser) {
+                    setShowLoyaltyAuth(true);
+                    return;
+                }
+                setUser(resolvedUser);
+                setView('loyalty');
+            };
+
+            const ADMIN_PASSWORD = '1234';
+            const openScheduleAdmin = () => {
+                const pass = prompt('Senha admin:');
+                if (pass === ADMIN_PASSWORD) {
+                    setScheduleDraft(storeSchedule);
+                    setShowScheduleModal(true);
+                } else if (pass !== null) {
+                    addToast('Senha inválida.', 'error');
+                }
+            };
 
             // --- CHECK DE INICIALIZAÇÃO ---
             if (!supabase) {
@@ -905,8 +935,8 @@
             }, [user]);
 
             const checkoutWhatsApp = async () => {
-                if (!isStoreOpen()) {
-                    addToast("A loja está fechada! Horário: 19:00 às 23:00 (Qui a Ter)", "error");
+                if (!isStoreOpenNow(storeSchedule)) {
+                    addToast(getStoreClosedMessage(storeSchedule), "error");
                     return;
                 }
                 
@@ -1418,6 +1448,165 @@
                     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
                         <div className="absolute inset-0 bg-black/90 backdrop-blur-sm" onClick={onClose}></div>
                         <div className="relative w-full max-w-sm bg-[#1F1F1F] rounded-xl p-6 border border-gray-800 shadow-2xl animate-fade-in text-center overflow-y-auto max-h-[90vh]"><div className="w-16 h-16 bg-[#B11226]/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-[#B11226]"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#B11226" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg></div><h3 className="font-display text-xl font-bold uppercase text-white mb-2">Indique e Ganhe</h3><p className="text-gray-400 text-sm mb-6">Compartilhe seu link exclusivo. Quando um amigo fizer o primeiro pedido, você ganha <span className="text-white font-bold">50 pontos</span>!</p><div className="bg-[#0B0B0B] p-3 rounded border border-gray-700 mb-4 flex items-center justify-between"><span className="text-gray-400 text-xs truncate mr-2">{link}</span><button onClick={handleCopy} className="text-[#B11226] font-bold text-xs uppercase hover:text-white">Copiar</button></div><button onClick={handleShare} className="w-full bg-[#25D366] text-white font-bold uppercase py-3 rounded hover:bg-green-600 transition-colors mb-3 flex items-center justify-center gap-2"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg> Enviar no WhatsApp</button><button onClick={handleSimulate} className="text-xs text-gray-500 hover:text-white underline mt-2">Simular indicação aceita (+50 pts)</button><button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button></div>
+                    </div>
+                );
+            };
+
+            const ScheduleModal = () => {
+                if (!showScheduleModal) return null;
+                const days = [
+                    { key: 'mon', label: 'Segunda' },
+                    { key: 'tue', label: 'Terça' },
+                    { key: 'wed', label: 'Quarta' },
+                    { key: 'thu', label: 'Quinta' },
+                    { key: 'fri', label: 'Sexta' },
+                    { key: 'sat', label: 'Sábado' },
+                    { key: 'sun', label: 'Domingo' }
+                ];
+
+                const toggleDay = (key) => {
+                    setScheduleDraft(prev => ({ ...prev, [key]: !prev[key] }));
+                };
+
+                const handleSave = async () => {
+                    await saveStoreSchedule(scheduleDraft);
+                    setShowScheduleModal(false);
+                    addToast("Agenda salva com sucesso!", "success");
+                };
+
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/80" onClick={() => setShowScheduleModal(false)}></div>
+                        <div className="relative w-full max-w-sm bg-[#1F1F1F] rounded-xl p-6 border border-gray-800 shadow-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-display text-lg font-bold uppercase text-white">Horário da Loja</h3>
+                                <button onClick={() => setShowScheduleModal(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {days.map(d => (
+                                    <label key={d.key} className="flex items-center justify-between bg-[#0B0B0B] border border-gray-800 rounded-lg px-3 py-2">
+                                        <span className="text-sm text-white">{d.label}</span>
+                                        <input
+                                            type="checkbox"
+                                            checked={!!scheduleDraft[d.key]}
+                                            onChange={() => toggleDay(d.key)}
+                                            className="accent-[#B11226] w-4 h-4"
+                                        />
+                                    </label>
+                                ))}
+                            </div>
+
+                            <div className="mt-4 space-y-3">
+                                <label className="flex items-center justify-between bg-[#0B0B0B] border border-gray-800 rounded-lg px-3 py-2">
+                                    <span className="text-sm text-white">Fechamento temporário</span>
+                                    <input
+                                        type="checkbox"
+                                        checked={!!scheduleDraft.temporaryClosed}
+                                        onChange={() => setScheduleDraft(prev => ({ ...prev, temporaryClosed: !prev.temporaryClosed }))}
+                                        className="accent-[#B11226] w-4 h-4"
+                                    />
+                                </label>
+                                <input
+                                    type="text"
+                                    value={scheduleDraft.message || ''}
+                                    onChange={(e) => setScheduleDraft(prev => ({ ...prev, message: e.target.value }))}
+                                    placeholder="Mensagem opcional (ex: Voltamos às 18h)"
+                                    className="w-full bg-[#0B0B0B] border border-gray-700 rounded p-3 text-white text-sm focus:border-[#B11226] outline-none"
+                                />
+                            </div>
+
+                            <div className="mt-5 flex gap-3">
+                                <button onClick={() => setShowScheduleModal(false)} className="flex-1 bg-transparent border border-gray-700 text-white font-bold uppercase py-3 rounded hover:bg-gray-800 transition-colors">Cancelar</button>
+                                <button onClick={handleSave} className="flex-1 bg-[#B11226] text-white font-bold uppercase py-3 rounded hover:bg-red-700 transition-colors">Salvar</button>
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            const LoyaltyAuthModal = () => {
+                const [tab, setTab] = useState('login');
+                const [email, setEmail] = useState('');
+                const [password, setPassword] = useState('');
+                const [name, setName] = useState('');
+                const [loading, setLoading] = useState(false);
+
+                if (!showLoyaltyAuth) return null;
+
+                const handleLogin = async () => {
+                    if (!email || !password) { addToast("Preencha e-mail e senha.", "error"); return; }
+                    setLoading(true);
+                    try {
+                        const data = await supabaseAuth('token?grant_type=password', { email, password });
+                        const safeUser = { ...(data.user || {}), email };
+                        localStorage.setItem('ng_user', JSON.stringify(safeUser));
+                        setUser(safeUser);
+                        setShowLoyaltyAuth(false);
+                        setView('loyalty');
+                    } catch (e) {
+                        addToast("Erro ao entrar: " + e.message, "error");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                const handleRegister = async () => {
+                    if (!name || !email || !password) { addToast("Preencha nome, e-mail e senha.", "error"); return; }
+                    setLoading(true);
+                    try {
+                        const data = await supabaseAuth('signup', { email, password, data: { name } });
+                        const safeUser = { ...(data.user || {}), email, name };
+                        localStorage.setItem('ng_user', JSON.stringify(safeUser));
+                        setUser(safeUser);
+                        setShowLoyaltyAuth(false);
+                        setView('loyalty');
+                    } catch (e) {
+                        addToast("Erro ao criar conta: " + e.message, "error");
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                return (
+                    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                        <div className="absolute inset-0 bg-black/70" onClick={() => setShowLoyaltyAuth(false)}></div>
+                        <div className="relative w-full max-w-sm bg-[#1F1F1F] rounded-xl p-6 border border-gray-800 shadow-2xl max-h-[85dvh] overflow-y-auto">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-display text-lg font-bold uppercase text-white">Fidelidade</h3>
+                                <button onClick={() => setShowLoyaltyAuth(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
+                            </div>
+
+                            <div className="flex gap-2 mb-4">
+                                <button onClick={() => setTab('login')} className={`flex-1 py-2 text-xs font-bold uppercase rounded border ${tab === 'login' ? 'bg-[#B11226] border-[#B11226] text-white' : 'border-gray-700 text-gray-400'}`}>Entrar</button>
+                                <button onClick={() => setTab('register')} className={`flex-1 py-2 text-xs font-bold uppercase rounded border ${tab === 'register' ? 'bg-[#B11226] border-[#B11226] text-white' : 'border-gray-700 text-gray-400'}`}>Criar conta</button>
+                            </div>
+
+                            <div className="space-y-3">
+                                {tab === 'register' && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nome</label>
+                                        <input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full bg-[#0B0B0B] border border-gray-700 rounded p-3 text-white focus:border-[#B11226] outline-none" placeholder="Seu nome" />
+                                    </div>
+                                )}
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">E-mail</label>
+                                    <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-[#0B0B0B] border border-gray-700 rounded p-3 text-white focus:border-[#B11226] outline-none" placeholder="seu@email.com" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Senha</label>
+                                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-[#0B0B0B] border border-gray-700 rounded p-3 text-white focus:border-[#B11226] outline-none" placeholder="******" />
+                                </div>
+                            </div>
+
+                            <button
+                                onClick={tab === 'login' ? handleLogin : handleRegister}
+                                disabled={loading}
+                                className="w-full mt-5 bg-[#B11226] text-white font-bold uppercase py-3 rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+                            >
+                                {loading ? 'Aguarde...' : (tab === 'login' ? 'Entrar' : 'Criar conta')}
+                            </button>
+                        </div>
                     </div>
                 );
             };
@@ -1990,23 +2179,16 @@
                     {/* --- HEADER / NAVEGAÇÃO --- */}
                     {/* --- LAUNCHER MOBILE (Tela Inicial App Style) --- */}
                     {isMobile && showMobileLauncher && view !== 'loyalty' && (
-                        useMobileHomeTest ? (
-                            <HomeMobileTest
-                                onEnter={() => setShowMobileLauncher(false)}
-                                onOpenLoyalty={() => setView('loyalty')}
-                                onOpenHistory={() => setShowHistoryModal(true)}
-                                onOpenLocation={handleOpenLocation}
-                                onShare={handleShareApp}
-                            />
-                        ) : (
-                            <HomeMobileLauncher 
-                                onEnter={() => setShowMobileLauncher(false)}
-                                onOpenLoyalty={() => setView('loyalty')}
-                                onOpenHistory={() => setShowHistoryModal(true)}
-                                onOpenLocation={handleOpenLocation}
-                                onShare={handleShareApp}
-                            />
-                        )
+                        <HomeMobileLauncher 
+                            onEnter={handleOrderClick}
+                            onOpenLoyalty={handleOpenLoyalty}
+                            onOpenHistory={() => setShowHistoryModal(true)}
+                            onOpenLocation={handleOpenLocation}
+                            onShare={handleShareApp}
+                            onNewsletterRegister={() => setAuthMode('register')}
+                            isOpen={isStoreOpenNow(storeSchedule)}
+                            onAdmin={openScheduleAdmin}
+                        />
                     )}
 
                     {/* --- PÁGINA DE FIDELIDADE --- */}
@@ -2118,8 +2300,10 @@
                         )}
 
                         {/* Modais de Autenticação e Contexto */}
-                        {authMode === 'login' && <LoginModal onClose={() => setAuthMode(null)} onLogin={(u) => { setUser(u); setAuthMode(null); }} onCreateAccount={() => setAuthMode('register')} onForgotPassword={() => setAuthMode('forgotPassword')} />}
-                        {authMode === 'register' && <RegistrationModal onClose={() => setAuthMode(null)} onSave={(u) => { setUser(u); setAuthMode(null); }} />}
+                        <ScheduleModal />
+                        <LoyaltyAuthModal />
+                        {authMode === 'login' && <LoginModal onClose={() => setAuthMode(null)} onLogin={(u) => { localStorage.setItem('ng_user', JSON.stringify(u)); setUser(u); setAuthMode(null); }} onCreateAccount={() => setAuthMode('register')} onForgotPassword={() => setAuthMode('forgotPassword')} />}
+                        {authMode === 'register' && <RegistrationModal onClose={() => setAuthMode(null)} onSave={(u) => { localStorage.setItem('ng_user', JSON.stringify(u)); setUser(u); setAuthMode(null); }} />}
                         {authMode === 'forgotPassword' && <ForgotPasswordModal onClose={() => setAuthMode(null)} onBack={() => setAuthMode('login')} />}
                         {showReviewModal && <NewReviewModal onClose={() => setShowReviewModal(false)} onSubmit={handleAddReview} />}
                         {showComboModal && comboProduct && <ComboModal product={comboProduct} products={products} categories={categories} onClose={() => setShowComboModal(false)} onAdd={addToCart} />}
@@ -2370,7 +2554,7 @@
                                     <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Subtotal:</span> <span>R$ {subTotal.toFixed(2)}</span></div>
                                     {discountPercent > 0 && <div className="flex justify-between text-sm text-green-500 mb-2"><span>Desconto:</span> <span>- R$ {discountValue.toFixed(2)}</span></div>}
                                     <div className="flex justify-between text-xl font-bold mb-4"><span>Total:</span> <span className="text-[#B11226]">R$ {cartTotal.toFixed(2)}</span></div>
-                                    <button onClick={checkoutWhatsApp} disabled={!cart.length} className="w-full bg-[#25D366] text-white font-bold uppercase py-4 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed">Finalizar no WhatsApp</button>
+                                    <button onClick={checkoutWhatsApp} disabled={!cart.length || !isStoreOpenNow(storeSchedule)} className="w-full bg-[#25D366] text-white font-bold uppercase py-4 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed">Finalizar no WhatsApp</button>
                                 </div>
                             </div>
                             </div>
