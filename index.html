@@ -325,6 +325,103 @@
             );
         };
 
+        // --- TAREFA 2: PÁGINA DE FIDELIDADE (COMPLETA) ---
+        const LoyaltyPage = ({ user, onBack, onRedeem }) => {
+            const points = user ? (user.points || 0) : 0;
+            
+            // Configuração de Recompensas
+            const rewards = [
+                { id: 1, cost: 50, name: "Batata Frita P", icon: "🍟" },
+                { id: 2, cost: 80, name: "Refrigerante Lata", icon: "🥤" },
+                { id: 3, cost: 150, name: "Burger Clássico", icon: "🍔" },
+                { id: 4, cost: 300, name: "Combo Duplo", icon: "👑" }
+            ];
+
+            // Cálculo de Nível
+            let tier = { name: 'Bronze', color: 'text-amber-700', bg: 'bg-amber-100' };
+            if (points >= 150) tier = { name: 'Prata', color: 'text-gray-500', bg: 'bg-gray-100' };
+            if (points >= 300) tier = { name: 'Ouro', color: 'text-yellow-600', bg: 'bg-yellow-100' };
+
+            // Progresso para próxima recompensa (ex: base 50)
+            const nextReward = rewards.find(r => r.cost > points) || rewards[rewards.length - 1];
+            const progress = Math.min(100, (points / nextReward.cost) * 100);
+
+            return (
+                <div className="min-h-screen bg-[#F5F5F5] text-gray-900 font-sans animate-fade-in flex flex-col">
+                    {/* Header */}
+                    <div className="bg-[#B11226] p-6 pb-12 rounded-b-[2.5rem] shadow-xl relative">
+                        <button onClick={onBack} className="absolute top-6 left-4 text-white p-2 hover:bg-white/10 rounded-full transition-colors">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+                        </button>
+                        <div className="text-center mt-2">
+                            <h1 className="font-display text-2xl font-bold text-white uppercase tracking-wider">Fidelidade</h1>
+                            <p className="text-white/80 text-xs uppercase tracking-widest mt-1">Na Garagem</p>
+                        </div>
+                    </div>
+
+                    {/* Card de Pontos */}
+                    <div className="px-6 -mt-8 mb-6">
+                        <div className="bg-white rounded-2xl shadow-xl p-6 border border-gray-100 text-center relative overflow-hidden">
+                            <div className={`absolute top-0 right-0 px-3 py-1 rounded-bl-xl text-[10px] font-bold uppercase ${tier.bg} ${tier.color}`}>Nível {tier.name}</div>
+                            <div className="mb-2">
+                                <span className="text-5xl font-black text-[#B11226] tracking-tighter">{points}</span>
+                                <span className="text-gray-400 text-xs font-bold uppercase block mt-1">Pontos Acumulados</span>
+                            </div>
+                            
+                            {/* Barra de Progresso */}
+                            <div className="mt-4">
+                                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-1">
+                                    <span>0</span>
+                                    <span>{nextReward.cost} (Próx.)</span>
+                                </div>
+                                <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-gradient-to-r from-orange-400 to-[#B11226] transition-all duration-1000" style={{ width: `${progress}%` }}></div>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2 font-medium">Faltam <span className="font-bold text-[#B11226]">{Math.max(0, nextReward.cost - points)}</span> pontos para: {nextReward.name}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Recompensas */}
+                    <div className="flex-1 px-6 pb-8 overflow-y-auto">
+                        <h3 className="font-display text-lg font-bold uppercase text-gray-800 mb-4 flex items-center gap-2">
+                            <span className="text-[#B11226]">🎁</span> Recompensas
+                        </h3>
+                        <div className="space-y-3">
+                            {rewards.map(reward => {
+                                const canRedeem = points >= reward.cost;
+                                return (
+                                    <div key={reward.id} className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${canRedeem ? 'bg-white border-[#B11226] shadow-md' : 'bg-gray-50 border-gray-200 opacity-70 grayscale'}`}>
+                                        <div className="flex items-center gap-4">
+                                            <div className="text-2xl bg-gray-100 w-12 h-12 flex items-center justify-center rounded-full">{reward.icon}</div>
+                                            <div>
+                                                <h4 className="font-bold text-gray-900 uppercase text-sm">{reward.name}</h4>
+                                                <span className="text-[#B11226] font-bold text-xs">{reward.cost} Pontos</span>
+                                            </div>
+                                        </div>
+                                        <button 
+                                            onClick={() => canRedeem && onRedeem(reward.cost)}
+                                            disabled={!canRedeem}
+                                            className={`px-4 py-2 rounded-lg font-bold text-[10px] uppercase transition-colors ${canRedeem ? 'bg-[#B11226] text-white hover:bg-red-700 shadow-lg active:scale-95' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                        >
+                                            Resgatar
+                                        </button>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="mt-8 bg-blue-50 p-4 rounded-xl border border-blue-100">
+                            <h4 className="font-bold text-blue-800 uppercase text-xs mb-2 flex items-center gap-2">ℹ️ Como funciona</h4>
+                            <p className="text-blue-600 text-xs leading-relaxed">
+                                Ganhe 1 ponto a cada R$ 1,00 em compras. Os pontos são creditados automaticamente após a finalização do pedido no WhatsApp.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
         // --- COMPONENTE PRODUCT CARD (MEMOIZED) ---
         // Extraído para melhorar performance e evitar re-renders desnecessários
         const ProductCard = React.memo(({ product, isFavorite, onToggleFavorite, onAdd, onView }) => {
@@ -381,9 +478,204 @@
             );
         });
 
+        // --- COMPONENTE HOME MOBILE LAUNCHER (APP STYLE) ---
+        const HomeMobileLauncher = ({ onEnter, onOpenLoyalty, onOpenHistory, onOpenLocation, onShare }) => {
+            // Ícones extraídos para evitar erro de parser no JSX inline
+            const Icons = {
+                Order: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>,
+                Menu: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>,
+                Loyalty: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>,
+                History: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path></svg>,
+                Location: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg>,
+                Share: <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+            };
+
+            const LauncherBtn = ({ icon, label, onClick, highlight }) => (
+                // TAREFA: Visual Dark Premium
+                <button 
+                    onClick={onClick} 
+                    className={`
+                        relative rounded-2xl p-4 flex flex-col items-center justify-center gap-3 
+                        transition-all aspect-square group overflow-hidden
+                        ${highlight 
+                            ? 'bg-zinc-900/60 border border-[#B11226]/50 shadow-[0_0_20px_rgba(177,18,38,0.15)]' 
+                            : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                        }
+                        active:scale-[0.98]
+                    `}
+                >
+                    {highlight && (
+                        <div className="absolute top-2 right-2 bg-[#B11226] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                            Rápido
+                        </div>
+                    )}
+                    <div className={`${highlight ? 'text-[#B11226] drop-shadow-[0_0_8px_rgba(177,18,38,0.5)]' : 'text-[#B11226]'} group-hover:scale-110 transition-transform duration-300`}>
+                        {icon}
+                    </div>
+                    <span className="text-white font-display font-black uppercase text-[10px] md:text-xs tracking-wider text-center leading-tight">
+                        {label}
+                    </span>
+                </button>
+            );
+
+            return (
+                // TAREFA: Background Dark com Gradiente Sutil
+                <div className="min-h-screen bg-gradient-to-b from-zinc-950 via-neutral-950 to-black flex flex-col md:hidden animate-fade-in relative z-50 overflow-hidden">
+                    {/* Texture Overlay (Ruído Sutil) */}
+                    <div className="absolute inset-0 opacity-[0.03] bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] pointer-events-none mix-blend-overlay"></div>
+                    
+                    <div className="relative z-10 flex flex-col h-full">
+                        {/* Header: Logo Premium (Maior, Glow Vermelho, Sem Texto) */}
+                        <div className="flex flex-col items-center justify-center pt-12 pb-6 flex-shrink-0 relative">
+                            {/* Glow Vermelho Sutil Atrás */}
+                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[#B11226] rounded-full blur-[80px] opacity-20 pointer-events-none"></div>
+                            
+                            <div className="w-40 h-40 bg-zinc-900/80 rounded-full flex items-center justify-center shadow-[0_10px_40px_rgba(0,0,0,0.5)] p-5 border border-white/10 backdrop-blur-md ring-1 ring-white/5 relative z-10">
+                                <img 
+                                    src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/logos/logo%20na%20garagem%20sem%20fundo%20(2).png" 
+                                    className="w-full h-full object-contain drop-shadow-2xl" 
+                                    alt="Logo" 
+                                    loading="lazy"
+                                    decoding="async"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Grid */}
+                        <div className="flex-1 px-6 pb-32 overflow-y-auto">
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Botão de Pedido removido do grid pois agora é fixo no rodapé, substituído por Cardápio como destaque ou mantendo fluxo */}
+                                <LauncherBtn icon={Icons.Menu} label="Cardápio" onClick={onEnter} />
+                                <LauncherBtn icon={Icons.Loyalty} label="Fidelidade" onClick={onOpenLoyalty} />
+                                <LauncherBtn icon={Icons.History} label="Meus Pedidos" onClick={onOpenHistory} />
+                                <LauncherBtn icon={Icons.Location} label="Localização" onClick={onOpenLocation} />
+                                <LauncherBtn icon={Icons.Share} label="Compartilhar" onClick={onShare} />
+                            </div>
+                        </div>
+
+                        {/* CTA Fixo no Rodapé (Conversão) */}
+                        <div className="fixed bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black via-black/90 to-transparent z-50 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                            <button onClick={onEnter} className="w-full bg-[#25D366] text-black font-display font-bold uppercase text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(37,211,102,0.2)] hover:bg-[#20bd5a] transition-all active:scale-[0.98] flex items-center justify-center gap-2">
+                                <span>Fazer Pedido</span>
+                                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- COMPONENTE HOME MOBILE TEST (MOBILE ONLY) ---
+        const HomeMobileTest = ({ onEnter, onOpenLoyalty, onOpenHistory, onOpenLocation, onShare }) => {
+            const items = [
+                {
+                    label: 'Cardápio',
+                    onClick: onEnter,
+                    icon: (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    )
+                },
+                {
+                    label: 'Fidelidade',
+                    onClick: onOpenLoyalty,
+                    icon: (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                    )
+                },
+                {
+                    label: 'Meus pedidos',
+                    onClick: onOpenHistory,
+                    icon: (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"></path>
+                        </svg>
+                    )
+                },
+                {
+                    label: 'Localização',
+                    onClick: onOpenLocation,
+                    icon: (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                            <circle cx="12" cy="10" r="3"></circle>
+                        </svg>
+                    )
+                },
+                {
+                    label: 'Compartilhar',
+                    onClick: onShare,
+                    icon: (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                    )
+                }
+            ];
+
+            return (
+                <div className="md:hidden min-h-screen bg-gradient-to-b from-black via-[#121212] to-[#0B0B0B] text-white relative overflow-hidden">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.05),_transparent_45%)] pointer-events-none"></div>
+                    <div className="relative z-10 flex flex-col min-h-screen px-5 pt-10 pb-24">
+                        {/* Logo grande, centralizada */}
+                        <div className="flex items-center justify-center">
+                            <img
+                                src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/logos/logo%20na%20garagem%20sem%20fundo%20(2).png"
+                                className="w-44 h-44 sm:w-52 sm:h-52 object-contain"
+                                alt="Logo Na Garagem"
+                                loading="lazy"
+                                decoding="async"
+                            />
+                        </div>
+
+                        {/* CTA principal */}
+                        <button
+                            onClick={onEnter}
+                            className="mt-6 w-full bg-[#B11226] text-white text-base font-extrabold uppercase tracking-wider py-4 rounded-2xl shadow-[0_14px_40px_rgba(177,18,38,0.35)] active:scale-[0.98] transition-transform"
+                        >
+                            🍔 FAZER PEDIDO
+                        </button>
+
+                        {/* Atalhos */}
+                        <div className="mt-6 flex flex-col gap-3">
+                            {items.map(item => (
+                                <button
+                                    key={item.label}
+                                    onClick={item.onClick}
+                                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl bg-white/5 border border-white/10 text-white/90 hover:bg-white/10 transition-colors"
+                                >
+                                    <span className="text-white/70">{item.icon}</span>
+                                    <span className="text-sm font-semibold">{item.label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* CTA final (reforço) */}
+                    <div className="fixed bottom-0 left-0 w-full md:hidden px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] bg-gradient-to-t from-black/90 via-black/60 to-transparent">
+                        <button
+                            onClick={onEnter}
+                            className="w-full rounded-xl border border-white/20 bg-white/10 text-white/90 uppercase text-sm font-bold py-3 tracking-widest"
+                        >
+                            FAZER PEDIDO
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+
         // --- COMPONENTE PRINCIPAL (APP) ---
         const App = () => {
             const { addToast } = useToast();
+            const useMobileHomeTest = true;
             const [authMode, setAuthMode] = useState(null); // 'login', 'register', 'forgotPassword'
             const [view, setView] = useState('client'); 
             const [categories, setCategories] = useState([]);
@@ -427,6 +719,7 @@
             const [showNewsletter, setShowNewsletter] = useState(false);
             const [showTermsModal, setShowTermsModal] = useState(false);
             const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+            const [showMobileLauncher, setShowMobileLauncher] = useState(true); // Controle do Launcher Mobile
             
             // --- TAREFA C: SCROLL LOCK ---
             // Trava o scroll do body quando o carrinho está aberto
@@ -1671,9 +1964,59 @@
                 </footer>
             );
 
+            const scrollToFooter = () => {
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            };
+
+            const handleOpenLocation = () => {
+                window.open("https://www.google.com/maps/search/?api=1&query=Na+Garagem+Hamburgueria+Garça", "_blank");
+            };
+
+            const handleShareApp = () => {
+                if (navigator.share) {
+                    navigator.share({
+                        title: 'Na Garagem Hamburgueria',
+                        text: 'Peça o melhor burger artesanal da cidade!',
+                        url: window.location.href
+                    }).catch(console.error);
+                } else {
+                    navigator.clipboard.writeText(window.location.href);
+                    addToast("Link copiado para a área de transferência!", "success");
+                }
+            };
+
             return (
                 <div className="min-h-screen bg-transparent text-[#F5F5F5] font-sans pb-20">
                     {/* --- HEADER / NAVEGAÇÃO --- */}
+                    {/* --- LAUNCHER MOBILE (Tela Inicial App Style) --- */}
+                    {isMobile && showMobileLauncher && view !== 'loyalty' && (
+                        useMobileHomeTest ? (
+                            <HomeMobileTest
+                                onEnter={() => setShowMobileLauncher(false)}
+                                onOpenLoyalty={() => setView('loyalty')}
+                                onOpenHistory={() => setShowHistoryModal(true)}
+                                onOpenLocation={handleOpenLocation}
+                                onShare={handleShareApp}
+                            />
+                        ) : (
+                            <HomeMobileLauncher 
+                                onEnter={() => setShowMobileLauncher(false)}
+                                onOpenLoyalty={() => setView('loyalty')}
+                                onOpenHistory={() => setShowHistoryModal(true)}
+                                onOpenLocation={handleOpenLocation}
+                                onShare={handleShareApp}
+                            />
+                        )
+                    )}
+
+                    {/* --- PÁGINA DE FIDELIDADE --- */}
+                    {view === 'loyalty' && (
+                        <LoyaltyPage user={user} onBack={() => { setView('client'); setShowMobileLauncher(true); }} onRedeem={handleRedeemPoints} />
+                    )}
+
+                    {/* --- LAYOUT PADRÃO (Desktop ou Mobile após entrar) --- */}
+                    <div className={`${(isMobile && showMobileLauncher) || view === 'loyalty' ? 'hidden' : 'block'}`}>
+                        {/* --- HEADER / NAVEGAÇÃO --- */}
                     <div className="sticky top-0 z-50 bg-[#0B0B0B] border-b border-white/10 shadow-2xl transition-all duration-300">
                         <div className="max-w-6xl mx-auto w-full">
                             {/* Linha Principal: Logo e Login */}
@@ -1684,7 +2027,7 @@
                                 </button>
 
                                 {/* Esquerda: Logo */}
-                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setView('client'); window.scrollTo({ top: 0, behavior: 'smooth' }); setSearchTerm(''); }}>
+                                <div className="flex items-center gap-3 cursor-pointer" onClick={() => { setView('client'); if(isMobile) setShowMobileLauncher(true); window.scrollTo({ top: 0, behavior: 'smooth' }); setSearchTerm(''); }}>
                                     <img src="https://zgeyjrmnkisomdlugupm.supabase.co/storage/v1/object/public/logos/logo%20na%20garagem%20sem%20fundo%20(2).png" className="w-12 h-12 object-contain drop-shadow-lg" alt="Logo" />
                                     <div className="flex flex-col">
                                         <h1 className="font-display text-2xl font-bold text-[#B11226] uppercase tracking-wider leading-none">Na Garagem</h1>
@@ -2052,6 +2395,7 @@
                             <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.008-.57-.008-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
                         </svg>
                     </a>
+                </div>
                 </div>
             );
         };
