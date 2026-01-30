@@ -322,6 +322,62 @@
             );
         };
 
+        // --- COMPONENTE PRODUCT CARD (MEMOIZED) ---
+        // Extraído para melhorar performance e evitar re-renders desnecessários
+        const ProductCard = React.memo(({ product, isFavorite, onToggleFavorite, onAdd, onView }) => {
+            // Preço mínimo para exibição (caso tenha variações)
+            const displayPrice = useMemo(() => {
+                if (product.variant_prices && Object.keys(product.variant_prices).length > 0) {
+                    return Math.min(...Object.values(product.variant_prices));
+                }
+                return product.price;
+            }, [product.variant_prices, product.price]);
+
+            return (
+                <div className="bg-[#121212] rounded-xl border border-white/5 flex flex-col hover:shadow-2xl hover:shadow-red-900/10 transition-all duration-300 group relative overflow-hidden h-full">
+                    {/* Image Top */}
+                    <div className="relative h-32 md:h-48 overflow-hidden cursor-pointer" onClick={() => onView(product)}>
+                        {product.image_url ? (
+                            <img 
+                                src={product.image_url} 
+                                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+                                loading="lazy" 
+                                decoding="async"
+                                alt={product.name}
+                            />
+                        ) : (
+                            <div className="w-full h-full bg-[#1a1a1a] flex items-center justify-center text-gray-700"><span className="font-display uppercase text-xs">Sem Foto</span></div>
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); onToggleFavorite(product.id); }}
+                            className={`absolute top-2 right-2 z-10 p-1.5 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/80 transition-colors ${isFavorite ? 'text-[#B11226]' : 'text-white'}`}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill={isFavorite ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        </button>
+                    </div>
+                    
+                    {/* Content */}
+                    <div className="p-3 md:p-5 flex flex-col flex-1 bg-black/60 backdrop-blur-md border-t border-white/5">
+                        <h3 className="font-display text-sm md:text-xl font-bold uppercase text-white tracking-wider leading-tight mb-1 line-clamp-1">{product.name}</h3>
+                        <p className="text-gray-400 text-xs md:text-sm font-sans leading-relaxed mb-3 line-clamp-2 flex-grow">{product.description}</p>
+                        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mt-auto gap-2 md:gap-3">
+                            <span className="text-brand-amber font-display font-bold text-lg md:text-2xl drop-shadow-sm">
+                                {product.variant_prices && Object.keys(product.variant_prices).length > 0 && <span className="text-[10px] text-gray-500 block leading-none">A partir de</span>}
+                                R$ {displayPrice.toFixed(2)}
+                            </span>
+                            <button 
+                                onClick={(e) => onAdd(product, e)}
+                                className="w-full md:w-auto bg-white text-black font-display font-bold uppercase px-4 py-2 rounded-lg hover:bg-[#B11226] hover:text-white transition-all duration-300 active:scale-95 shadow-lg text-xs md:text-sm"
+                            >
+                                Adicionar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+
         // --- COMPONENTE PRINCIPAL (APP) ---
         const App = () => {
             const { addToast } = useToast();
@@ -368,6 +424,27 @@
             const [showNewsletter, setShowNewsletter] = useState(false);
             const [showTermsModal, setShowTermsModal] = useState(false);
             const [showPrivacyModal, setShowPrivacyModal] = useState(false);
+            
+            // --- TAREFA C: SCROLL LOCK ---
+            // Trava o scroll do body quando o carrinho está aberto
+            useEffect(() => {
+                if (isCartOpen) {
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = 'unset';
+                }
+                return () => { document.body.style.overflow = 'unset'; };
+            }, [isCartOpen]);
+
+            // --- CONTROLE DE EXIBIÇÃO MOBILE (LIMITAR 4 ITENS) ---
+            const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+            const [expandedCategories, setExpandedCategories] = useState({});
+
+            useEffect(() => {
+                const handleResize = () => setIsMobile(window.innerWidth < 768);
+                window.addEventListener('resize', handleResize);
+                return () => window.removeEventListener('resize', handleResize);
+            }, []);
 
             // --- CHECK DE INICIALIZAÇÃO ---
             if (!supabase) {
@@ -425,7 +502,7 @@
             // --- FUNÇÃO DE CONFETE ---
             const triggerConfetti = (e) => {
                 if (!e || !e.target) return;
-                const rect = e.target.getBoundingClientRect();
+                const rect = (e.currentTarget || e.target).getBoundingClientRect(); // Fix: currentTarget garante que pegamos o botão, não o SVG interno
                 const x = (rect.left + rect.width / 2) / window.innerWidth;
                 const y = (rect.top + rect.height / 2) / window.innerHeight;
                 
@@ -451,13 +528,29 @@
 
             // --- LÓGICA DO CARRINHO ---
             const addToCart = (product) => {
-                setCart(prev => {
-                    const existing = prev.find(p => p.id === product.id);
-                    if (existing) return prev.map(p => p.id === product.id ? { ...p, quantity: p.quantity + 1 } : p);
-                    return [...prev, { ...product, quantity: 1 }];
-                });
-                if (cart.length === 0) setIsCartOpen(true);
-                else addToast("Adicionado ao carrinho!", "success");
+                try {
+                    if (!product || !product.id) throw new Error("Produto inválido");
+                    
+                    // Fix: Garantir que preço é número
+                    let safePrice = product.price;
+                    if (typeof safePrice === 'string') {
+                        safePrice = parseFloat(safePrice.replace(',', '.'));
+                    }
+                    if (isNaN(safePrice)) safePrice = 0;
+
+                    const safeProduct = { ...product, price: safePrice };
+
+                    setCart(prev => {
+                        const existing = prev.find(p => p.id === safeProduct.id);
+                        if (existing) return prev.map(p => p.id === safeProduct.id ? { ...p, quantity: p.quantity + 1 } : p);
+                        return [...prev, { ...safeProduct, quantity: 1 }];
+                    });
+                    if (cart.length === 0) setIsCartOpen(true);
+                    else addToast("Adicionado ao carrinho!", "success");
+                } catch (error) {
+                    console.error("Erro ao adicionar ao carrinho:", error);
+                    addToast("Erro ao adicionar item.", "error");
+                }
             };
 
             const handleProductClick = (product, e) => {
@@ -1748,52 +1841,21 @@
                                     );
 
                                     if (!catProducts.length) return null;
+
                                     return (
                                         <div key={cat.id} id={`cat-${cat.id}`} className="scroll-mt-80 md:scroll-mt-48">
                                             <h2 className="font-display text-2xl font-bold uppercase mb-6 border-l-4 border-[#B11226] pl-4 tracking-widest text-white">{cat.name}</h2>
-                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                            {/* TAREFA A: Grid 2 colunas mobile, 3 colunas desktop (md+) */}
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-6">
                                                 {catProducts.map(p => (
-                                                    <div key={p.id} className="bg-[#121212] rounded-2xl border border-white/5 flex flex-col hover:shadow-2xl hover:shadow-red-900/10 transition-all duration-300 group relative overflow-hidden">
-                                                        {/* Image Top */}
-                                                        <div className="relative h-48 overflow-hidden cursor-pointer" onClick={() => setViewProduct(p)}>
-                                                            {p.image_url ? (
-                                                                <img src={p.image_url} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                                                            ) : (
-                                                                <div className="w-full h-full bg-[#1a1a1a] flex items-center justify-center text-gray-700"><span className="font-display uppercase">Sem Foto</span></div>
-                                                            )}
-                                                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent"></div>
-                                                            <h3 className="absolute bottom-3 left-4 right-4 font-display text-xl font-bold uppercase text-white tracking-wider drop-shadow-md leading-tight">{p.name}</h3>
-                                                            <button 
-                                                                onClick={(e) => { e.stopPropagation(); toggleFavorite(p.id); }}
-                                                                className={`absolute top-3 right-3 z-10 p-2 rounded-full bg-black/40 backdrop-blur-sm hover:bg-black/80 transition-colors ${favorites.includes(p.id) ? 'text-[#B11226]' : 'text-white'}`}
-                                                            >
-                                                                <svg width="18" height="18" viewBox="0 0 24 24" fill={favorites.includes(p.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                                                            </button>
-                                                        </div>
-                                                        
-                                                        {/* Content */}
-                                                        <div className="p-5 flex flex-col flex-1 bg-black/60 backdrop-blur-md border-t border-white/5">
-                                                            <p className="text-gray-400 text-sm font-sans leading-relaxed mb-4 line-clamp-2 flex-grow">{p.description}</p>
-                                                            <div className="flex items-center justify-between mt-auto gap-3">
-                                                                <div className="flex flex-col">
-                                                                    {p.variant_prices && Object.keys(p.variant_prices).length > 0 ? (
-                                                                        <>
-                                                                            <span className="text-[10px] text-gray-400 uppercase font-bold">A partir de</span>
-                                                                            <span className="text-brand-amber font-display font-bold text-2xl drop-shadow-sm">R$ {Math.min(...Object.values(p.variant_prices)).toFixed(2)}</span>
-                                                                        </>
-                                                                    ) : (
-                                                                        <span className="text-brand-amber font-display font-bold text-2xl drop-shadow-sm">R$ {p.price.toFixed(2)}</span>
-                                                                    )}
-                                                                </div>
-                                                                <button 
-                                                                    onClick={(e) => handleProductClick(p, e)}
-                                                                    className="bg-white text-black font-display font-bold uppercase px-6 py-2.5 rounded-xl hover:bg-[#B11226] hover:text-white transition-all duration-300 active:scale-95 shadow-lg text-sm"
-                                                                >
-                                                                    Adicionar
-                                                                </button>
-                                                            </div>
-                                                        </div>
-                                                    </div>
+                                                    <ProductCard 
+                                                        key={p.id} 
+                                                        product={p} 
+                                                        isFavorite={favorites.includes(p.id)}
+                                                        onToggleFavorite={toggleFavorite}
+                                                        onAdd={handleProductClick}
+                                                        onView={setViewProduct}
+                                                    />
                                                 ))}
                                             </div>
                                         </div>
@@ -1807,15 +1869,26 @@
 
                     {/* --- CARRINHO (SIDEBAR) --- */}
                     {isCartOpen && (
-                        <div className="fixed inset-0 z-[60] flex justify-end">
-                            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
-                            <div className="relative w-full max-w-md bg-[#1F1F1F] h-full shadow-2xl flex flex-col border-l border-gray-800">
-                                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-[#0B0B0B]">
-                                    <h2 className="font-display text-2xl font-bold uppercase">Seu Pedido</h2>
+                        // TAREFA: Refatoração do Modal Carrinho (Mobile First + Safe Area)
+                        <>
+                            {/* Overlay (z-60 para cobrir botões flutuantes z-50) */}
+                            <div className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm" onClick={() => setIsCartOpen(false)}></div>
+                            
+                            {/* Modal Container */}
+                            <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center pointer-events-none">
+                                <div className="pointer-events-auto w-full sm:w-[560px] max-h-[90dvh] bg-[#1F1F1F] shadow-2xl flex flex-col border border-gray-800 rounded-t-2xl sm:rounded-2xl overflow-hidden">
+                                {/* Header Sticky */}
+                                <div className="p-4 border-b border-gray-800 flex justify-between items-center bg-[#0B0B0B] sticky top-0 z-20">
+                                    <h2 className="font-display text-xl font-bold uppercase text-white">Seu Pedido</h2>
                                     <button onClick={() => setIsCartOpen(false)} className="text-gray-400 hover:text-white text-2xl">&times;</button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto p-6 space-y-4">
-                                    {cart.length === 0 ? <p className="text-center text-gray-500 mt-10">Carrinho vazio.</p> : cart.map(item => (
+                                
+                                {/* Conteúdo com Scroll */}
+                                <div className="flex-1 overflow-y-auto p-4 bg-[#1F1F1F]">
+                                    <div className="space-y-6">
+                                        {/* 1. Lista de Itens */}
+                                        <section className="space-y-4">
+                                            {cart.length === 0 ? <p className="text-center text-gray-500 mt-10">Carrinho vazio.</p> : cart.map(item => (
                                         <div key={item.id} className="bg-[#0B0B0B] p-3 border border-gray-800 flex flex-col gap-3">
                                             <div className="flex justify-between items-center">
                                                 <div>
@@ -1841,11 +1914,16 @@
                                                 className="w-full bg-[#151515] text-gray-300 text-xs p-2 rounded border border-gray-800 focus:border-[#B11226] focus:outline-none"
                                             />
                                         </div>
-                                    ))}
-                                </div>
-                                {cart.length > 0 && (
-                                    <div className="p-6 bg-[#151515] border-t border-gray-800 space-y-3">
-                                        <h3 className="font-bold text-sm uppercase text-gray-400">Dados de Entrega</h3>
+                                            ))}
+                                        </section>
+
+                                        {cart.length > 0 && (
+                                            <>
+                                                <hr className="border-gray-800" />
+
+                                                {/* 2. Dados de Entrega */}
+                                                <section className="space-y-4">
+                                                    <h3 className="font-bold text-sm uppercase text-gray-400 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path><circle cx="12" cy="10" r="3"></circle></svg> Dados de Entrega</h3>
                                         
                                         <div className="flex gap-2 mb-2">
                                             <button 
@@ -1897,8 +1975,13 @@
                                                 />
                                             </div>
                                         )}
+                                                </section>
 
-                                        <h3 className="font-bold text-sm uppercase text-gray-400 mt-4 mb-2">Forma de Pagamento</h3>
+                                                <hr className="border-gray-800" />
+
+                                                {/* 3. Forma de Pagamento */}
+                                                <section className="space-y-4">
+                                                    <h3 className="font-bold text-sm uppercase text-gray-400 flex items-center gap-2"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg> Pagamento</h3>
                                         <div className="flex gap-2">
                                             {['pix', 'card', 'money'].map(method => (
                                                 <button 
@@ -1919,28 +2002,33 @@
                                                 className="w-full bg-[#0B0B0B] text-white p-3 rounded border border-gray-700 focus:border-[#B11226] focus:outline-none text-sm mt-2"
                                             />
                                         )}
-                                    </div>
-                                )}
+                                                </section>
                                 
-                                {/* Cupom de Desconto */}
-                                {cart.length > 0 && (
-                                    <div className="px-6 pb-2 bg-[#0B0B0B]">
-                                        <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Cupom de Desconto</label>
+                                                <hr className="border-gray-800" />
+
+                                                {/* 4. Cupom */}
+                                                <section className="space-y-4">
+                                                    <label className="text-xs font-bold text-gray-500 uppercase block">Cupom de Desconto</label>
                                         <div className="flex gap-2">
                                             <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} placeholder="Código" className="flex-1 bg-[#151515] border border-gray-800 rounded p-2 text-white text-sm uppercase focus:border-[#B11226] outline-none" />
                                             <button onClick={applyCoupon} className="bg-gray-800 text-white px-3 rounded font-bold text-xs hover:bg-gray-700">APLICAR</button>
                                         </div>
+                                                </section>
+                                            </>
+                                        )}
                                     </div>
-                                )}
+                                </div>
 
-                                <div className="p-6 bg-[#0B0B0B] border-t border-gray-800">
+                                {/* Footer Sticky */}
+                                <div className="p-4 bg-[#0B0B0B] border-t border-gray-800 sticky bottom-0 z-20 pb-[max(1rem,env(safe-area-inset-bottom))]">
                                     <div className="flex justify-between text-sm text-gray-400 mb-1"><span>Subtotal:</span> <span>R$ {subTotal.toFixed(2)}</span></div>
                                     {discountPercent > 0 && <div className="flex justify-between text-sm text-green-500 mb-2"><span>Desconto:</span> <span>- R$ {discountValue.toFixed(2)}</span></div>}
                                     <div className="flex justify-between text-xl font-bold mb-4"><span>Total:</span> <span className="text-[#B11226]">R$ {cartTotal.toFixed(2)}</span></div>
                                     <button onClick={checkoutWhatsApp} disabled={!cart.length} className="w-full bg-[#25D366] text-white font-bold uppercase py-4 hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed">Finalizar no WhatsApp</button>
                                 </div>
                             </div>
-                        </div>
+                            </div>
+                        </>
                     )}
 
                     {/* --- BOTÃO FLUTUANTE --- */}
